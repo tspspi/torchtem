@@ -1,6 +1,6 @@
 # TorchTEM
 
-This repository contains `torchtem`, a fully differentiable simulator for transmission electron microscopes (TEM). It has been inspired by [abTEM](https://github.com/abTEM/abTEM) __and is based entirely on the ideas from `abTEM`__, an ab inito transmission electron microscope simulator built by a [group at University of Vienna](https://www.mostlyphysics.net/). Consider `torchtem` being derivative work by the rules of GPL.
+This repository contains `torchtem`, a fully differentiable simulator for transmission electron microscopes (TEM). It has been inspired by [abTEM](https://github.com/abTEM/abTEM) __and is based entirely on the ideas from `abTEM`__, an ab inito transmission electron microscope simulator built by a [group at University of Vienna](https://www.mostlyphysics.net/). Consider `torchtem` being derivative work by the rules of GPL, but being in _no way associated to the authors of abTEM_.
 
 The main goal was to keep the whole implementation fully differentiable to allow backpropagation through the models and pass in all parameters of the TEM as `torch` vector too.
 
