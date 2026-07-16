@@ -1,0 +1,926 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{TorchTEM Layer Equations}
+\author{TSPI / torchtem}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Purpose}
+This document records the mathematical form of implemented layers in
+\texttt{tspi/torchtem}.  
+
+\section{Notation}
+We use the following notation:
+\begin{align}
+  \psi(\mathbf{r}) &\in \mathbb{C} && \text{complex wave in real space,} \\
+  \Psi(\mathbf{k}) &\in \mathbb{C} && \text{complex wave in reciprocal space,} \\
+  \mathbf{r} &= (x,y), \\
+  \mathbf{k} &= (k_x,k_y), \\
+  \lambda &= \lambda(E) && \text{relativistic electron wavelength,} \\
+  \sigma &= \sigma(E) && \text{electron interaction parameter,} \\
+  V_j(\mathbf{r}) &&& \text{projected electrostatic potential of slice } j.
+\end{align}
+The forward and inverse Fourier transforms in the current implementation use
+orthonormal FFT normalization:
+\begin{align}
+  \Psi(\mathbf{k}) &= \mathcal{F}\{\psi(\mathbf{r})\}, \\
+  \psi(\mathbf{r}) &= \mathcal{F}^{-1}\{\Psi(\mathbf{k})\}.
+\end{align}
+
+\section{Wave Containers and Builders}
+\subsection{Waves}
+The Torch-native \texttt{Waves} container stores an array
+\begin{align}
+  \psi \in \mathbb{C}^{n_1 \times \cdots \times n_m \times N_y \times N_x},
+\end{align}
+where the final two indices are spatial dimensions and the leading indices are optional
+ensemble dimensions.
+
+The real-space intensity and phase observables are
+\begin{align}
+  I(\mathbf{r}) &= |\psi(\mathbf{r})|^2, \\
+  \phi(\mathbf{r}) &= \arg \psi(\mathbf{r}).
+\end{align}
+
+Reciprocal-space conversion is defined by
+\begin{align}
+  \Psi(\mathbf{k}) &= \mathcal{F}\{\psi(\mathbf{r})\},
+\end{align}
+and real-space reconstruction from reciprocal representation is
+\begin{align}
+  \psi(\mathbf{r}) &= \mathcal{F}^{-1}\{\Psi(\mathbf{k})\}.
+\end{align}
+
+Two normalization modes are currently implemented.
+
+\paragraph{Value normalization.}
+\begin{align}
+  \psi_{\mathrm{norm}}(\mathbf{r})
+  = \frac{\psi(\mathbf{r})}
+         {\max_{\mathbf{r}} |\psi(\mathbf{r})| + \varepsilon}.
+\end{align}
+
+\paragraph{Reciprocal-space normalization.}
+\begin{align}
+  \psi_{\mathrm{norm}}(\mathbf{r})
+  = \frac{\psi(\mathbf{r})}
+         {\left(\sum_{\mathbf{k}} |\Psi(\mathbf{k})|^2\right)^{1/2} + \varepsilon}.
+\end{align}
+
+\subsection{PlaneWaveBuilder}
+The plane-wave builder emits a constant incident field
+\begin{align}
+  \psi_0(\mathbf{r}) = A,
+\end{align}
+where $A \in \mathbb{C}$ is a user-selected complex amplitude.
+
+\subsection{ProbeWavesBuilder}
+The probe builder wraps the probe-forming optics and returns
+\begin{align}
+  \psi_{\mathrm{probe}}(\mathbf{r})
+  = \mathcal{F}^{-1}\left\{ H(\mathbf{k}) \, A(\mathbf{k}) \right\},
+\end{align}
+where $A(\mathbf{k})$ is an optional reciprocal-space amplitude mask and
+$H(\mathbf{k})$ is the transfer function defined below.
+
+\section{Optics}
+\subsection{CTF}
+The contrast transfer function is modeled as
+\begin{align}
+  H(\mathbf{k})
+  = P(\mathbf{k})
+    \exp\!\left[- i \chi(\mathbf{k})\right]
+    E_t(\mathbf{k})
+    E_s(\mathbf{k}),
+\end{align}
+where $P$ is the aperture, $\chi$ is the aberration phase, $E_t$ is the temporal
+envelope, and $E_s$ is the spatial envelope.  In the implementation, $E_t$ and $E_s$
+are included only when the corresponding spread parameters are non-zero.
+
+Let $\alpha = 10^3 \lambda |\mathbf{k}|$ be the scattering angle in mrad and $\varphi$
+the polar angle of $\mathbf{k}$.  The aberration phase polynomial is represented as
+\begin{align}
+  \chi(\alpha,\varphi)
+  = \frac{2\pi}{\lambda}\sum_{n,m} \frac{\alpha^{n+1}}{n+1}
+  C_{nm}\cos\!\left[m(\varphi-\phi_{nm})\right],
+\end{align}
+with explicit implemented terms up to fifth order.
+
+The hard or soft aperture is
+\begin{align}
+  P(\alpha) =
+  \begin{cases}
+    \mathbf{1}\{\alpha \le \alpha_c\}, & \text{hard cutoff,} \\
+    \sigma\!\left(\dfrac{\alpha_c-\alpha}{s}\right), & \text{soft edge,}
+  \end{cases}
+\end{align}
+where $\alpha_c$ is the semiangle cutoff, $s$ is the soft-edge width, and $\sigma$ is
+the logistic function.
+
+The temporal envelope is
+\begin{align}
+  E_t(\alpha)
+  = \exp\!\left[
+    -\left(
+      \frac{\pi}{2\lambda}\Delta f \, \alpha^2
+    \right)^2
+  \right],
+\end{align}
+where $\Delta f$ is the focal spread.
+
+\section{Multislice Propagation}
+\subsection{Transmission}
+For slice $j$, the transmission function is
+\begin{align}
+  T_j(\mathbf{r}) = \exp\!\left[i \sigma V_j(\mathbf{r})\right].
+\end{align}
+
+\subsection{Fresnel propagation}
+Between slices, the current implementation uses an exact Fourier-space propagator
+\begin{align}
+  \Psi_{j+1}(\mathbf{k})
+  = G(\mathbf{k}; \Delta z)\,\Psi'_j(\mathbf{k}),
+\end{align}
+where $\Delta z$ is the slice thickness and
+\begin{align}
+  \Psi'_j(\mathbf{k}) = \mathcal{F}\left\{ T_j(\mathbf{r})\psi_j(\mathbf{r}) \right\}.
+\end{align}
+The propagated wave in real space is
+\begin{align}
+  \psi_{j+1}(\mathbf{r})
+  = \mathcal{F}^{-1}\left\{
+    G(\mathbf{k}; \Delta z)\,
+    \mathcal{F}\left[T_j(\mathbf{r})\psi_j(\mathbf{r})\right]
+  \right\}.
+\end{align}
+
+The implemented exact propagator distinguishes propagating and evanescent components via
+$x = \lambda^2 |\mathbf{k}|^2$:
+\begin{align}
+  G(\mathbf{k};\Delta z) =
+  \begin{cases}
+    \exp\!\left[
+      \dfrac{2\pi \Delta z}{\lambda}
+      \left(
+        -\dfrac{x}{\sqrt{1-x}+1}
+      \right)
+    \right], & x \le 1, \\
+    \exp\!\left[
+      \dfrac{2\pi \Delta z}{\lambda}
+      \left(
+        i\sqrt{x-1}-1
+      \right)
+    \right], & x > 1.
+  \end{cases}
+\end{align}
+
+\subsection{Multislice recursion}
+Starting from incident wave $\psi_0(\mathbf{r})$, the full multislice recursion is
+\begin{align}
+  \psi_{j+\frac{1}{2}}(\mathbf{r}) &= T_j(\mathbf{r})\psi_j(\mathbf{r}), \\
+  \psi_{j+1}(\mathbf{r}) &= \mathcal{F}^{-1}\left\{
+    G(\mathbf{k};\Delta z)\,
+    \mathcal{F}\left[\psi_{j+\frac{1}{2}}(\mathbf{r})\right]
+  \right\}.
+\end{align}
+
+\section{Wave--Optics Interaction}
+Applying a CTF to a \texttt{Waves} object is defined as:
+\begin{align}
+  \Psi_{\mathrm{out}}(\mathbf{k})
+  = H(\mathbf{k})\,\Psi_{\mathrm{in}}(\mathbf{k}),
+\end{align}
+where $\Psi_{\mathrm{in}}$ is either the stored reciprocal-space wave, or the Fourier
+transform of a stored real-space wave.  If the input container is in real space, the
+output is returned to real space after multiplication:
+\begin{align}
+  \psi_{\mathrm{out}}(\mathbf{r})
+  = \mathcal{F}^{-1}\left\{
+    H(\mathbf{k}) \mathcal{F}\{\psi_{\mathrm{in}}(\mathbf{r})\}
+  \right\}.
+\end{align}
+
+\section{Specimen and Potential Layers}
+\subsection{GaussianAtomProjection}
+The current smooth surrogate projected-potential layer stores atom positions
+$\mathbf{r}_n = (y_n, x_n)$, amplitudes $a_n$, and widths $\sigma_n$ and produces
+\begin{align}
+  V(\mathbf{r})
+  = \sum_{n=1}^{N_{\mathrm{atom}}}
+    a_n
+    \exp\!\left(
+      -\frac{\|\mathbf{r}-\mathbf{r}_n\|^2}{2\sigma_n^2}
+    \right).
+\end{align}
+This layer is used as a trainable, differentiable surrogate while more faithful
+parametrized atomic potentials are also available elsewhere in the implementation.
+
+\subsection{Projected potential slices}
+When a single projected potential $V(\mathbf{r})$ is reused across a multislice stack of
+$N_s$ equal slices, the current \texttt{TEMModel} path distributes it as
+\begin{align}
+  V_j(\mathbf{r}) = \frac{1}{N_s}V(\mathbf{r}),
+  \qquad j=1,\dots,N_s.
+\end{align}
+If the potential module already returns a rank-3 tensor of slice-resolved potentials,
+that tensor is interpreted directly as
+\begin{align}
+  \{V_j(\mathbf{r})\}_{j=1}^{N_s}.
+\end{align}
+
+\subsection{IAM slice builder}
+The current IAM potential builder stores atoms
+\begin{align}
+  \mathbf{R}_n = (y_n, x_n, z_n),
+\end{align}
+chemical symbols $s_n$, and optional amplitudes $a_n$, and returns a slice stack
+\begin{align}
+  \{V_j(\mathbf{r})\}_{j=1}^{N_s},
+  \qquad
+  [z_j^-, z_j^+) \subset [0, L_z).
+\end{align}
+
+For infinite projected-potential mode, each atom is assigned to exactly one slice by
+\begin{align}
+  m_j(n) = \mathbf{1}\{z_n \in [z_j^-, z_j^+)\},
+\end{align}
+and the slice potential is assembled as
+\begin{align}
+  V_j(\mathbf{r})
+  = \sum_{n=1}^{N_{\mathrm{atom}}}
+    m_j(n)\,a_n\,\Phi_{s_n}^{\infty}(\mathbf{r} - \mathbf{R}_{n,xy}),
+\end{align}
+where $\Phi_{s_n}^{\infty}$ denotes the chosen infinite projected atomic potential,
+either from the direct parametrized projected-potential formulas or from the
+projected-scattering-factor integrator path.
+
+For finite projected mode, each slice accumulates the finite $z$-window contribution
+of every atom,
+\begin{align}
+  V_j(\mathbf{r})
+  = \sum_{n=1}^{N_{\mathrm{atom}}}
+    a_n\,\Phi_{s_n}^{[z_j^-, z_j^+)}(\mathbf{r} - \mathbf{R}_{n,xy}, z_n),
+\end{align}
+where $\Phi_{s_n}^{[z_j^-, z_j^+)}$ is evaluated either by the explicit finite Peng
+formula or by the Gaussian-plus-correction projection-integral route used for the
+current Lobato/Kirkland finite builder support.
+
+\section{Scan Layers}
+\subsection{Fourier-shift scan positioning}
+Given a reference wave $\psi(\mathbf{r})$ and scan shift
+$\Delta \mathbf{r}_m = (\Delta y_m, \Delta x_m)$, the implementation applies the Fourier
+shift theorem:
+\begin{align}
+  \psi_m(\mathbf{r})
+  = \mathcal{F}^{-1}\left\{
+    \exp\!\left[-2\pi i
+      \left(
+        \Delta y_m k_y + \Delta x_m k_x
+      \right)
+    \right]
+    \mathcal{F}\{\psi(\mathbf{r})\}
+  \right\}.
+\end{align}
+
+\subsection{GridScan}
+For scan start point $\mathbf{r}_{\min} = (y_{\min},x_{\min})$, end point
+$\mathbf{r}_{\max} = (y_{\max},x_{\max})$, and raster shape
+$(N_y^{\mathrm{scan}},N_x^{\mathrm{scan}})$, the scan positions are
+\begin{align}
+  y_i &= y_{\min} + \frac{i}{N_y^{\mathrm{scan}}-1}(y_{\max}-y_{\min}), \\
+  x_j &= x_{\min} + \frac{j}{N_x^{\mathrm{scan}}-1}(x_{\max}-x_{\min}),
+\end{align}
+with lexicographically flattened position list
+\begin{align}
+  \mathcal{S}
+  = \left\{ (y_i,x_j) \right\}_{i,j}.
+\end{align}
+
+\subsection{CustomScan}
+The custom scan layer is a direct position map:
+\begin{align}
+  \mathcal{S}
+  = \left\{ (y_m,x_m) \right\}_{m=1}^{M},
+\end{align}
+where the full list is supplied by the caller.
+
+\section{Detection Layers}
+\subsection{DiffractionIntensity}
+The diffraction intensity operator computes
+\begin{align}
+  I(\mathbf{k}) = |\mathcal{F}\{\psi(\mathbf{r})\}|^2.
+\end{align}
+
+\subsection{AnnularDetector}
+Let the angle components in mrad be
+\begin{align}
+  \alpha_y(\mathbf{k}) &= 10^3 \lambda k_y, \\
+  \alpha_x(\mathbf{k}) &= 10^3 \lambda k_x,
+\end{align}
+and let $\Delta\boldsymbol{\alpha}=(\Delta\alpha_y,\Delta\alpha_x)$ be an optional
+detector-center offset.  The shifted radial coordinate is
+\begin{align}
+  \alpha_\Delta(\mathbf{k})
+  =
+  \sqrt{
+    \left(\alpha_y(\mathbf{k})-\Delta\alpha_y\right)^2
+    +
+    \left(\alpha_x(\mathbf{k})-\Delta\alpha_x\right)^2
+  }.
+\end{align}
+For inner and outer detector radii $\alpha_{\mathrm{in}}$ and
+$\alpha_{\mathrm{out}}$, the annular mask is
+\begin{align}
+  M_{\mathrm{ann}}(\mathbf{k})
+  = \mathbf{1}\{
+    \alpha_{\mathrm{in}} \le \alpha_\Delta(\mathbf{k}) < \alpha_{\mathrm{out}}
+  \},
+\end{align}
+and the detector output is
+\begin{align}
+  D_{\mathrm{ann}}
+  = \sum_{\mathbf{k}} I(\mathbf{k}) M_{\mathrm{ann}}(\mathbf{k}).
+\end{align}
+The annular detector-region helper returns the binary mask
+$M_{\mathrm{ann}}(\mathbf{k})$ itself for geometry inspection.
+
+\subsection{PixelatedDetector}
+The pixelated detector may either record diffraction intensity
+\begin{align}
+  D_{\mathrm{pix}}(\mathbf{k}) = I(\mathbf{k}).
+\end{align}
+or real-space wave intensity
+\begin{align}
+  D_{\mathrm{pix,real}}(\mathbf{r}) = |\psi(\mathbf{r})|^2.
+\end{align}
+If a target output grid $\mathbf{N}'$ is requested, the current Torch-native
+implementation resamples the intensity image to that shape using the shared FFT-based
+interpolation helper.
+If a maximum detected scattering angle $\alpha_{\max}$ is configured in reciprocal
+mode, the detector first applies the mask
+\begin{align}
+  M_{\max}(\mathbf{k}) = \mathbf{1}\{\alpha(\mathbf{k}) \le \alpha_{\max}\},
+\end{align}
+and returns
+\begin{align}
+  D_{\mathrm{pix},\max}(\mathbf{k}) = I(\mathbf{k}) M_{\max}(\mathbf{k}).
+\end{align}
+The corresponding detector-region helper returns $M_{\max}(\mathbf{k})$ directly; in
+real-space mode it returns the all-ones mask because the full image plane is accepted.
+
+\subsection{SegmentedDetector}
+Let the valid angular interval be
+\begin{align}
+  \alpha_{\mathrm{in}} \le \alpha_\Delta(\mathbf{k}) < \alpha_{\mathrm{out}},
+\end{align}
+and let the shifted polar angle be
+\begin{align}
+  \varphi_\Delta(\mathbf{k})
+  =
+  \mathrm{mod}\!\left(
+    \mathrm{atan2}\!\left(
+      \alpha_x(\mathbf{k})-\Delta\alpha_x,
+      \alpha_y(\mathbf{k})-\Delta\alpha_y
+    \right)
+    - \varphi_0,
+    2\pi
+  \right),
+\end{align}
+where $\varphi_0$ is the detector rotation.  The radial and azimuthal bin indices are
+\begin{align}
+  b_r(\mathbf{k}) &=
+  \left\lfloor
+    N_r \frac{\alpha_\Delta(\mathbf{k})-\alpha_{\mathrm{in}}}
+               {\alpha_{\mathrm{out}}-\alpha_{\mathrm{in}}}
+  \right\rfloor, \\
+  b_\varphi(\mathbf{k}) &=
+  \left\lfloor
+    N_\varphi \frac{\varphi_\Delta(\mathbf{k})}{2\pi}
+  \right\rfloor.
+\end{align}
+The segment index is
+\begin{align}
+  b(\mathbf{k}) = b_r(\mathbf{k}) N_\varphi + b_\varphi(\mathbf{k}),
+\end{align}
+and the detector output accumulates intensity over each segment:
+\begin{align}
+  D_{r,\varphi}
+  = \sum_{\mathbf{k} \in \Omega_{r,\varphi}} I(\mathbf{k}).
+\end{align}
+The segmented detector-region helper returns the family of masks
+$\{\mathbf{1}_{\Omega_{r,\varphi}}(\mathbf{k})\}_{r,\varphi}$, represented with
+NaN outside each region so per-region plots remain visually separated.
+
+\section{Coherence Averaging}
+The current source-offset ensemble path evaluates multiple coherent members
+\begin{align}
+  \{\psi^{(m)}(\mathbf{r})\}_{m=1}^{M}
+\end{align}
+and averages their measured intensities:
+\begin{align}
+  \bar{D}
+  = \frac{1}{M}\sum_{m=1}^{M} D\!\left[\psi^{(m)}\right].
+\end{align}
+This corresponds to an incoherent mixture approximation for the selected source
+ensemble.
+
+\section{Assembly and Composition Layers}
+\subsection{LayerStack}
+The stack assembly API represents the full simulator as an ordered composition
+\begin{align}
+  y = (f_L \circ f_{L-1} \circ \cdots \circ f_1 \circ s)(\varnothing),
+\end{align}
+where $s$ is a source layer with no wave input and each $f_\ell$ is a unary map on
+either a wave or a derived measurement tensor.  The implementation also allows the
+intermediate states
+\begin{align}
+  z_0 &= s(\varnothing), \\
+  z_\ell &= f_\ell(z_{\ell-1}), \qquad \ell=1,\dots,L,
+\end{align}
+to be returned explicitly for debugging, supervision, or auxiliary losses.
+
+\subsection{PotentialSliceInteraction}
+The potential-slice interaction layer binds a potential-producing module to a
+multislice propagator:
+\begin{align}
+  \psi_{\mathrm{out}}
+  = \mathcal{M}\!\left(
+    \psi_{\mathrm{in}},
+    \{V_j\}_{j=1}^{N_s}
+  \right),
+\end{align}
+where $\mathcal{M}$ denotes the multislice recursion and the potential module produces
+either a slice stack $\{V_j\}_{j=1}^{N_s}$ directly or a single projected potential
+$V(\mathbf{r})$ that is distributed uniformly as
+\begin{align}
+  V_j(\mathbf{r}) = \frac{1}{N_s}V(\mathbf{r}).
+\end{align}
+
+\subsection{ScanLayer}
+The scan layer converts a reference wave into a batch of shifted waves over a position
+set $\mathcal{S} = \{\Delta \mathbf{r}_m\}_{m=1}^{M}$:
+\begin{align}
+  \psi^{(m)}(\mathbf{r})
+  = \mathcal{T}_{\Delta \mathbf{r}_m}\psi(\mathbf{r}),
+  \qquad m=1,\dots,M,
+\end{align}
+where $\mathcal{T}_{\Delta \mathbf{r}_m}$ is the implemented Fourier-shift operator
+from the scan section above.  The output is therefore a stacked tensor
+\begin{align}
+  \Psi_{\mathrm{scan}}
+  = \{\psi^{(m)}\}_{m=1}^{M}.
+\end{align}
+
+\subsection{DetectorReadout and BatchDetectorReadout}
+For a detector functional $\mathcal{D}$, the unary detector readout is simply
+\begin{align}
+  y = \mathcal{D}[\psi].
+\end{align}
+For a leading scan or ensemble batch, the batch detector path applies the same
+detector independently:
+\begin{align}
+  y_m = \mathcal{D}[\psi^{(m)}],
+  \qquad m=1,\dots,M.
+\end{align}
+This keeps the whole assembled simulator differentiable as a map from source and
+specimen parameters to either scalar signals, image stacks, or diffraction data.
+
+\subsection{Structured experiment assembly}
+The experiment-builder layer defines a parameter object
+\begin{align}
+  \Theta
+  = \left(
+    \Theta_{\mathrm{src}},
+    \Theta_{\mathrm{ms}},
+    \Theta_{\mathrm{pot}},
+    \Theta_{\mathrm{scan}},
+    \Theta_{\mathrm{det}},
+    \Theta_{\mathrm{coh}}
+  \right),
+\end{align}
+where omitted blocks are allowed for modes that do not require them.  The builder then
+instantiates a composed simulator
+\begin{align}
+  \mathcal{E}_{\Theta}
+  = \mathcal{R}_{\Theta_{\mathrm{coh}},\Theta_{\mathrm{det}}}
+    \circ
+    \mathcal{S}_{\Theta_{\mathrm{scan}}}
+    \circ
+    \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \circ
+    \mathcal{Q}_{\Theta_{\mathrm{src}}},
+\end{align}
+with the conventions that $\mathcal{S}$ becomes the identity if no scan is present,
+and $\mathcal{R}$ reduces to the identity, detector-only readout, or coherence-aware
+readout depending on the selected experiment mode.
+
+For a plane-wave source configuration,
+\begin{align}
+  \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  = A \mathbf{1},
+\end{align}
+whereas for a probe-forming source configuration,
+\begin{align}
+  \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  = \mathcal{F}^{-1}\left\{
+    H_{\Theta_{\mathrm{src}}}(\mathbf{k})
+  \right\}.
+\end{align}
+
+The resulting experiment map therefore provides a differentiable parameter-to-output
+operator
+\begin{align}
+  y = \mathcal{E}_{\Theta}(\varnothing),
+\end{align}
+which is the object intended for downstream gradient-based calibration, inverse
+problems, and external training pipelines.
+
+\subsection{Multi-detector experiment branches}
+For realistic STEM/TEM experiments the detector block may itself be a family of
+simultaneous readouts
+\begin{align}
+  \mathcal{D}
+  = \left\{
+    \mathcal{D}_q
+  \right\}_{q \in \mathcal{Q}},
+\end{align}
+where $\mathcal{Q}$ is a set of user-defined detector names such as annular,
+segmented, or pixelated channels.  The experiment readout then returns a named output
+map
+\begin{align}
+  y_q = \mathcal{D}_q[\psi],
+  \qquad q \in \mathcal{Q},
+\end{align}
+or, for scanned experiments,
+\begin{align}
+  y_q^{(m)} = \mathcal{D}_q[\psi^{(m)}],
+  \qquad m=1,\dots,M.
+\end{align}
+With coherence averaging enabled in the ensemble-averaging mode, each named branch becomes
+\begin{align}
+  y_q^{(m)}
+  = \sum_{\ell=1}^{L} w_\ell \,
+    \mathcal{D}_q\!\left[\psi_\ell^{(m)}\right],
+\end{align}
+with normalized coherence weights $w_\ell$.  This is the semantics used by the
+Torch-native multi-detector experiment builder and plotting surface.
+
+For diagonal mixed coherence, the experiment source is replaced by coherent modes
+$\psi_\ell^{(0)}$ generated by the diagonal mixed-coherence factor decomposition,
+the elastic stack propagates each mode independently,
+\begin{align}
+  \psi_\ell^{(m)}
+  = \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{S}_{\mathbf{r}^{(m)}} \psi_\ell^{(0)},
+\end{align}
+and the detector outputs are reduced incoherently after propagation:
+\begin{align}
+  y_q^{(m)}
+  = \sum_{\ell=1}^{L}
+    \mathcal{D}_q\!\left[\psi_\ell^{(m)}\right].
+\end{align}
+If no detector is configured, the experiment returns the incoherent real-space intensity
+\begin{align}
+  I^{(m)}(\mathbf{r})
+  = \sum_{\ell=1}^{L} \left|\psi_\ell^{(m)}(\mathbf{r})\right|^2.
+\end{align}
+
+\subsection{Mode presets}
+The preset experiment surfaces are typed restrictions of the general experiment map
+$\mathcal{E}_{\Theta}$.
+
+\paragraph{HRTEM preset.}
+The HRTEM preset omits scanning and uses
+\begin{align}
+  y = \mathcal{D}\!\left[
+    \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  \right],
+\end{align}
+where $\mathcal{D}$ is typically a pixelated image-plane or diffraction-plane readout.
+
+\paragraph{STEM preset.}
+The STEM preset requires a probe-forming source and scan path:
+\begin{align}
+  y^{(m)} = \mathcal{D}\!\left[
+    \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{T}_{\Delta \mathbf{r}_m}
+    \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  \right].
+\end{align}
+
+\paragraph{Diffraction preset.}
+The diffraction preset uses a pixelated detector branch by default:
+\begin{align}
+  y^{(m)}(\mathbf{k}) = \left|
+    \mathcal{F}\left\{
+      \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+      \mathcal{T}_{\Delta \mathbf{r}_m}
+      \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+    \right\}
+  \right|^2,
+\end{align}
+with the scan operator removed when no scan path is configured.
+
+\subsection{Simulation-result wrapper}
+The simulator-facing run helper does not change the computed output; it packages the
+same final tensor or named detector map together with metadata and optional
+intermediate states.  If the layer stack has states
+\begin{align}
+  \{z_\ell\}_{\ell=0}^{L},
+\end{align}
+then the wrapped result stores
+\begin{align}
+  y &= z_L, \\
+  \mathcal{I} &= \{z_\ell\}_{\ell=0}^{L},
+\end{align}
+when intermediate capture is requested, and otherwise stores only $y$ together with
+metadata such as experiment mode, scan/coherence flags, and detector names.  Plotting
+is defined as a visualization map
+\begin{align}
+  \mathcal{P}: y \mapsto \text{matplotlib panels},
+\end{align}
+where each detector branch or scan-indexed slice is rendered as a labeled panel.
+
+\subsection{Post-detector measurement pipelines}
+The experiment surface may append a post-detector pipeline
+\begin{align}
+  \mathcal{R} = \mathcal{R}_P \circ \cdots \circ \mathcal{R}_2 \circ \mathcal{R}_1
+\end{align}
+after detector readout.  The resulting experiment output becomes
+\begin{align}
+  \tilde{y} = \mathcal{R}(y),
+\end{align}
+or, for named detector branches,
+\begin{align}
+  \tilde{y}_q = \mathcal{R}_q(y_q), \qquad q \in \mathcal{Q},
+\end{align}
+where each branch may have its own configured sequence.
+
+Implemented examples include:
+\begin{align}
+  \mathcal{R}_{\mathrm{blur}}(I) &= G_\sigma * I, \\
+  \mathcal{R}_{\mathrm{MTF}}(I) &= \mathcal{F}^{-1}\left\{
+    \sqrt{K_{\mathrm{MTF}}(\mathbf{k})}\,\mathcal{F}\{I\}
+  \right\}, \\
+  \mathcal{R}_{\mathrm{Poisson}}(I) &\sim \mathrm{Poisson}(d\,I), \\
+  \mathcal{R}_{\mathrm{COM}}(I) &= \left(
+    \frac{\sum_{\mathbf{k}} k_y I(\mathbf{k})}{\sum_{\mathbf{k}} I(\mathbf{k})},
+    \frac{\sum_{\mathbf{k}} k_x I(\mathbf{k})}{\sum_{\mathbf{k}} I(\mathbf{k})}
+  \right).
+\end{align}
+This is the semantics used by the Torch-native experiment postprocessing layer.
+
+\subsection{Propagation-backend selection}
+The experiment multislice configuration may choose between distinct propagation
+operators while preserving the same higher-level assembly semantics.  Denote the chosen
+propagation backend by $\mathcal{M}^{(b)}$, where
+\begin{align}
+  b \in \{\text{fourier}, \text{realspace}\}.
+\end{align}
+The experiment map then uses
+\begin{align}
+  y = \mathcal{D}\!\left[
+    \mathcal{M}^{(b)}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  \right].
+\end{align}
+For $b=\text{fourier}$ this is the reciprocal-space Fresnel multislice recursion
+described above.  For $b=\text{realspace}$ it is the truncated exponential-series
+real-space propagator already implemented in the low-level stack.  The experiment layer
+therefore selects among low-level propagators without changing the surrounding source,
+scan, detector, or measurement-pipeline structure.
+
+For $b=\text{prism}$, the scanned probe experiment uses an S-matrix reduction path:
+\begin{align}
+  S_p(\mathbf{r})
+  &=
+  \mathcal{M}^{(\text{fourier})}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+  \phi_p(\mathbf{r}), \\
+  \psi^{(m)}(\mathbf{r})
+  &= \sum_{p=1}^{P}
+    c_p \,
+    \exp\!\left[
+      -2\pi i \,
+      \mathbf{k}_p \cdot \Delta \mathbf{r}_m
+    \right]
+    S_p(\mathbf{r}),
+\end{align}
+where $\phi_p$ are parent plane waves, $\mathbf{k}_p$ are the selected parent wave
+vectors, and $c_p$ are the probe coefficients sampled from the CTF grid.  For a scan
+configuration, the phase factor produces one reduced wave per scan position
+$\Delta \mathbf{r}_m$; without a scan configuration, the current experiment layer
+reduces the S-matrix once at the origin. This is the current experiment-level PRISM
+path exposed by the Torch-native simulator surface.
+
+For $b=\text{bloch}$, the experiment currently exposes a diffraction-style path driven
+by structure factors:
+\begin{align}
+  \mathbf{c}(t) &= S_{\mathrm{Bloch}}(t)\,\mathbf{c}_0, \\
+  I_j &= |c_j(t)|^2,
+\end{align}
+where $\mathbf{c}_0$ is the incident plane-wave coefficient vector and
+$S_{\mathrm{Bloch}}$ is the Bloch scattering matrix from the low-level model.  The
+experiment layer rasterizes $\{I_j\}$ onto the configured reciprocal-space image grid
+at the corresponding projected reciprocal-lattice coordinates.  Reciprocal-intensity
+detector readout may then be applied directly to this rasterized diffraction image for
+the current pixelated-reciprocal, annular, flexible-annular, and segmented detector
+families.  Alternatively, the complex coefficients $c_j(t)$ themselves may be
+rasterized onto the reciprocal grid for reciprocal-wave output. This is intentionally a
+constrained diffraction-oriented surface rather than full Bloch feature parity.
+
+\subsection{Inelastic branch}
+The experiment layer may append a constrained inelastic branch after elastic
+propagation, and this branch may also be followed by the current coherence-averaging
+readout path:
+\begin{align}
+  \psi_{\mathrm{el}}
+  = \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing),
+\end{align}
+followed by an inelastic operator $\mathcal{T}_{\mathrm{inel}}$.
+
+For channel-producing transition potentials,
+\begin{align}
+  \psi_c^{\mathrm{inel}}(\mathbf{r})
+  = T_c(\mathbf{r}) \, \psi_{\mathrm{el}}(\mathbf{r}),
+\end{align}
+and the experiment output is either the stack $\{\psi_c^{\mathrm{inel}}\}_c$ or, when a
+detector branch is configured, the recursively reduced detector outputs
+\begin{align}
+  y_c = \mathcal{D}\!\left[\psi_c^{\mathrm{inel}}\right].
+\end{align}
+
+For plasmon weighted-intensity mode, the branch evaluates shifted inelastic members
+\begin{align}
+  \psi_\ell^{\mathrm{pl}}(\mathbf{r})
+  = \mathcal{S}_{\Delta \mathbf{r}_\ell}\psi_{\mathrm{el}}(\mathbf{r}),
+\end{align}
+and returns
+\begin{align}
+  I_{\mathrm{pl}}(\mathbf{r})
+  = \sum_{\ell} w_\ell \left|\psi_\ell^{\mathrm{pl}}(\mathbf{r})\right|^2.
+\end{align}
+If a coherence model is configured, detector or intensity outputs are reduced over
+coherent members after the inelastic branch using the same ensemble-weighted or
+diagonal-MCF incoherent reduction as the elastic experiment path. This is the current
+constrained inelastic experiment surface exposed by TorchTEM.
+
+\subsection{Magnetic branch}
+The experiment layer may also append a projected magnetic interaction after elastic
+propagation:
+\begin{align}
+  \psi_{\mathrm{mag}}
+  = \mathcal{P}_A\!\left(
+    A_{xy},
+    \psi_{\mathrm{el}}
+  \right),
+\end{align}
+where $A_{xy}$ is a projected vector potential from the magnetic builder and
+$\mathcal{P}_A$ is the projected Pauli interaction currently implemented as
+\begin{align}
+  \psi_{\mathrm{mag}}
+  = \psi_{\mathrm{el}} + \eta \, A_{xy}\cdot\nabla_{xy}\psi_{\mathrm{el}},
+\end{align}
+with configurable complex prefactor $\eta$.  The resulting magnetic wave may then feed
+the usual detector and postprocessing branches.  This is the current constrained
+magnetic experiment surface exposed by TorchTEM.
+
+\subsection{Image-forming detector branch}
+The Torch-native detector family now also includes a real-space image-forming branch.
+Given an exit wave $\psi_{\mathrm{exit}}(\mathbf{r})$, the detector may optionally
+apply an objective-lens transfer function
+\begin{align}
+  H(\mathbf{k}) = A(\mathbf{k})\,\exp\!\bigl[-i\chi(\mathbf{k})\bigr],
+\end{align}
+where $A$ is the aperture and $\chi$ is the aberration phase polynomial from the CTF
+layer already defined above.  The image-plane wave is then
+\begin{align}
+  \psi_{\mathrm{img}}(\mathbf{r})
+  =
+  \mathcal{F}^{-1}
+  \left\{
+    H(\mathbf{k})\,
+    \mathcal{F}\{\psi_{\mathrm{exit}}(\mathbf{r})\}
+  \right\}.
+\end{align}
+The detector may return several real-space channels:
+\begin{align}
+  I(\mathbf{r}) &= |\psi_{\mathrm{img}}(\mathbf{r})|^2, \\
+  \varphi(\mathbf{r}) &= \arg \psi_{\mathrm{img}}(\mathbf{r}), \\
+  R(\mathbf{r}) &= \Re \psi_{\mathrm{img}}(\mathbf{r}), \\
+  J(\mathbf{r}) &= \Im \psi_{\mathrm{img}}(\mathbf{r}),
+\end{align}
+or the complex image-plane wave itself.  In experiment-builder notation, this makes it
+possible to express HRTEM-style image formation as a detector branch
+\begin{align}
+  y = \mathcal{D}_{\mathrm{img}}
+  \left[
+    \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  \right]
+\end{align}
+instead of applying an imaging CTF manually outside the assembled simulator graph.
+
+\subsection{Direct waves detector branch}
+The detector family also includes a direct wave readout branch for optimization or
+reconstruction pipelines that require complex fields instead of already reduced image
+intensities.  Given an exit wave $\psi_{\mathrm{exit}}(\mathbf{r})$, the detector may
+either return the real-space wave directly,
+\begin{align}
+  y_{\mathrm{exit}}(\mathbf{r}) = \psi_{\mathrm{exit}}(\mathbf{r}),
+\end{align}
+or the reciprocal-space wave
+\begin{align}
+  y_{\mathrm{rec}}(\mathbf{k}) = \mathcal{F}\{\psi_{\mathrm{exit}}(\mathbf{r})\}.
+\end{align}
+If a target detector grid $\mathbf{N}'=(N_y',N_x')$ is requested, the returned wave is
+resampled by FFT cropping/interpolation:
+\begin{align}
+  \tilde{y} = \mathcal{I}_{\mathbf{N}'}[y],
+\end{align}
+where $\mathcal{I}_{\mathbf{N}'}$ denotes the Torch-native Fourier interpolation
+operator already implemented in the support layer.  This yields a detector branch
+\begin{align}
+  y = \mathcal{D}_{\mathrm{waves}}
+  \left[
+    \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+    \mathcal{Q}_{\Theta_{\mathrm{src}}}(\varnothing)
+  \right]
+\end{align}
+that preserves the complex field for downstream differentiable pipelines.
+
+\subsection{Flexible annular detector branch}
+The detector family also includes a radial-binning annular detector that preserves
+annular integration flexibility after simulation.  Let the diffraction intensity be
+\begin{align}
+  I(\mathbf{k}) = \left|\mathcal{F}\{\psi(\mathbf{r})\}\right|^2,
+\end{align}
+and define the shifted scattering-angle magnitude
+\begin{align}
+  \alpha_\Delta(\mathbf{k}) =
+  \sqrt{
+    \left(\alpha_y(\mathbf{k})-\Delta\alpha_y\right)^2
+    +
+    \left(\alpha_x(\mathbf{k})-\Delta\alpha_x\right)^2
+  },
+\end{align}
+in mrad.  For inner angle $\alpha_{\mathrm{in}}$, optional outer angle
+$\alpha_{\mathrm{out}}$, and radial step size $\Delta \alpha$, the detector defines
+radial bin indices
+\begin{align}
+  b(\mathbf{k}) =
+  \left\lfloor
+    \frac{\alpha_\Delta(\mathbf{k}) - \alpha_{\mathrm{in}}}{\Delta \alpha}
+  \right\rfloor,
+\end{align}
+restricted to pixels satisfying
+\begin{align}
+  \alpha_{\mathrm{in}} \le \alpha_\Delta(\mathbf{k}) < \alpha_{\mathrm{out}}.
+\end{align}
+The detector output is then the vector of radial annular sums
+\begin{align}
+  y_n = \sum_{\mathbf{k}: b(\mathbf{k}) = n} I(\mathbf{k}),
+\end{align}
+for $n=0,\dots,N_r-1$, where
+\begin{align}
+  N_r = \left\lfloor
+    \frac{\alpha_{\mathrm{out}} - \alpha_{\mathrm{in}}}{\Delta \alpha}
+  \right\rfloor.
+\end{align}
+This provides a differentiable analogue of the original flexible annular detector:
+the simulation produces a radial-binned detector signal once, and downstream annular
+integrations may be chosen afterward without recomputing the forward wave propagation.
+The Torch-native implementation now also supports off-axis detector-center shifts
+$\Delta\boldsymbol{\alpha}$ in this branch.
+The corresponding detector-region helper returns the integer-valued radial bin map
+$b(\mathbf{k})$ with invalid pixels marked outside the accepted annular support.
+An additional helper returns the family of per-bin masks
+$\{\mathbf{1}_{b(\mathbf{k})=n}\}_n$, represented as separate 2D region planes with
+NaN outside the active bin so radial detector regions can be visualized directly.
+Because the detector output is the radial-bin vector $\{y_n\}$, a post-hoc annular
+integration over limits $(\alpha_1,\alpha_2)$ is implemented as
+\begin{align}
+  D_{\mathrm{flex}}(\alpha_1,\alpha_2)
+  = \sum_{n=n_1}^{n_2-1} y_n,
+\end{align}
+where
+\begin{align}
+  n_1 &= \left\lfloor
+    \frac{\alpha_1-\alpha_{\mathrm{in}}}{\Delta \alpha}
+  \right\rfloor, \\
+  n_2 &= \left\lceil
+    \frac{\alpha_2-\alpha_{\mathrm{in}}}{\Delta \alpha}
+  \right\rceil.
+\end{align}
+For limits aligned with the radial bin boundaries, this matches the corresponding fixed
+annular detector integral exactly up to floating-point arithmetic.
+
+
+\end{document}
