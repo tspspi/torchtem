@@ -7,9 +7,9 @@ from typing import Any, Callable, Generator, Optional
 
 import numpy as np
 
-from tspi.torchtem.axes import AxesMetadataList, AxisMetadata
-from tspi.torchtem.chunks import Chunks, ValidatedChunks, chunk_ranges, validate_chunks
-from tspi.torchtem.misc_utils import itemset
+from torchtem.axes import AxesMetadataList, AxisMetadata
+from torchtem.chunks import Chunks, ValidatedChunks, chunk_ranges, validate_chunks
+from torchtem.misc_utils import itemset
 
 
 def interleave(args1, args2):

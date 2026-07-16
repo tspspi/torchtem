@@ -8,9 +8,9 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from tspi.torchtem.complex_support import abs2
-from tspi.torchtem.fft_support import fft2, fft2_convolve
-from tspi.torchtem.physics import ensure_tuple2, real_space_mesh
+from torchtem.complex_support import abs2
+from torchtem.fft_support import fft2, fft2_convolve
+from torchtem.physics import ensure_tuple2, real_space_mesh
 
 
 def _electron_configurations_path() -> Path:

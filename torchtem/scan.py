@@ -5,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import ensure_tuple2, reciprocal_mesh
+from torchtem.physics import ensure_tuple2, reciprocal_mesh
 
 
 def fft_shift_wave(

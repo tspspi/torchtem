@@ -4,8 +4,8 @@ from itertools import product
 
 import torch
 
-from tspi.torchtem.complex_support import complex_exponential_scaled
-from tspi.torchtem.physics import reciprocal_mesh
+from torchtem.complex_support import complex_exponential_scaled
+from torchtem.physics import reciprocal_mesh
 
 
 def fft2(x: torch.Tensor, norm: str = "backward") -> torch.Tensor:

@@ -6,9 +6,9 @@ from collections.abc import Sequence
 import torch
 from torch import nn
 
-from tspi.torchtem.measurements import CenterOfMass, GaussianBlur, IntegrateGradient
-from tspi.torchtem.mtf import MTF
-from tspi.torchtem.noise import PoissonNoise, ScanDistortion
+from torchtem.measurements import CenterOfMass, GaussianBlur, IntegrateGradient
+from torchtem.mtf import MTF
+from torchtem.noise import PoissonNoise, ScanDistortion
 
 
 @dataclass

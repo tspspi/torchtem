@@ -148,7 +148,7 @@ def check_deprecations(key: str, deprecations: dict[str, str | None] = deprecati
 
 
 def _initialize() -> None:
-    path = Path(__file__).resolve().parents[2] / "abtem" / "core" / "abtem.yaml"
+    path = Path(__file__).resolve().parents[1] / "snapshot" / "src" / "abtem" / "core" / "abtem.yaml"
     with open(path) as f:
         loaded_defaults = yaml.safe_load(f)
     update_defaults(loaded_defaults)

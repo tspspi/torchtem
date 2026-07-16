@@ -7,12 +7,12 @@ import numpy as np
 import torch
 from torch import nn
 
-from tspi.torchtem.array_object import ArrayObject
-from tspi.torchtem.axes import AxisMetadata, RealSpaceAxis, ReciprocalSpaceAxis
-from tspi.torchtem.fft_support import fft2, ifft2
-from tspi.torchtem.grid import Grid, HasGrid2DMixin
-from tspi.torchtem.optics import CTF, PlaneWave as PlaneWaveField, Probe as ProbeField
-from tspi.torchtem.physics import energy2wavelength
+from torchtem.array_object import ArrayObject
+from torchtem.axes import AxisMetadata, RealSpaceAxis, ReciprocalSpaceAxis
+from torchtem.fft_support import fft2, ifft2
+from torchtem.grid import Grid, HasGrid2DMixin
+from torchtem.optics import CTF, PlaneWave as PlaneWaveField, Probe as ProbeField
+from torchtem.physics import energy2wavelength
 
 
 class BaseWaves(HasGrid2DMixin, ABC):

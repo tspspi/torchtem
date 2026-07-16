@@ -9,8 +9,8 @@ from typing import Any, Optional, Self, TypeVar, Union
 import numpy as np
 import torch
 
-import tspi.torchtem.config as config
-from tspi.torchtem.axes import (
+import torchtem.config as config
+from torchtem.axes import (
     AxesMetadataList,
     AxisMetadata,
     OrdinalAxis,
@@ -18,10 +18,10 @@ from tspi.torchtem.axes import (
     axis_from_dict,
     axis_to_dict,
 )
-from tspi.torchtem.backend import copy_to_device, get_array_module
-from tspi.torchtem.chunks import Chunks
-from tspi.torchtem.ensemble import EmptyEnsemble, Ensemble
-from tspi.torchtem.misc_utils import CopyMixin, EqualityMixin, normalize_axes, number_to_tuple
+from torchtem.backend import copy_to_device, get_array_module
+from torchtem.chunks import Chunks
+from torchtem.ensemble import EmptyEnsemble, Ensemble
+from torchtem.misc_utils import CopyMixin, EqualityMixin, normalize_axes, number_to_tuple
 
 try:
     import dask

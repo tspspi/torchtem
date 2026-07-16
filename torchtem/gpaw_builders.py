@@ -6,15 +6,15 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from tspi.torchtem.charge_density import (
+from torchtem.charge_density import (
     integrate_gradient_fourier,
     interpolate_slice,
     spatial_frequencies,
 )
-from tspi.torchtem.fft_support import fft_crop, fft_interpolate
-from tspi.torchtem.iam import IAMPotentialBuilder
-from tspi.torchtem.magnetism import _real_space_mesh
-from tspi.torchtem.slicing import validate_slice_thickness
+from torchtem.fft_support import fft_crop, fft_interpolate
+from torchtem.iam import IAMPotentialBuilder
+from torchtem.magnetism import _real_space_mesh
+from torchtem.slicing import validate_slice_thickness
 
 BOHR_MAGNETON = 9.2740100657e-24 * 1e20  # A * Å^2
 VACUUM_PERMEABILITY = 1.25663706127e-6 * 1e10  # T * Å / A

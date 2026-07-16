@@ -6,7 +6,7 @@ from typing import Callable
 
 import torch
 
-from tspi.torchtem.atomic_parametrizations import (
+from torchtem.atomic_parametrizations import (
     _load_kirkland_parameters,
     _load_lobato_parameters,
     _load_peng_parameters,
@@ -16,7 +16,7 @@ from tspi.torchtem.atomic_parametrizations import (
     lobato_scaled_projected_parameters,
     peng_scaled_parameters,
 )
-from tspi.torchtem.poisson_helpers import load_waasmaier_kirfel_parameters
+from torchtem.poisson_helpers import load_waasmaier_kirfel_parameters
 
 
 class Parametrization(ABC):
@@ -263,7 +263,7 @@ class WaasmaierKirfelParametrization(Parametrization):
 
 @lru_cache(maxsize=1)
 def electron_symbols() -> tuple[str, ...]:
-    from tspi.torchtem.core_loss import electron_configurations
+    from torchtem.core_loss import electron_configurations
 
     return tuple(electron_configurations().keys())
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import ensure_tuple2, real_space_mesh
+from torchtem.physics import ensure_tuple2, real_space_mesh
 
 
 def render_gaussian_projection(

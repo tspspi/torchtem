@@ -5,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import reciprocal_mesh
+from torchtem.physics import reciprocal_mesh
 
 
 def antialias_aperture(

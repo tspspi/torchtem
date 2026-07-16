@@ -6,10 +6,10 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from tspi.torchtem.complex_support import abs2
-from tspi.torchtem.fft_support import fft2, fft_interpolate
-from tspi.torchtem.optics import CTF
-from tspi.torchtem.physics import reciprocal_mesh
+from torchtem.complex_support import abs2
+from torchtem.fft_support import fft2, fft_interpolate
+from torchtem.optics import CTF
+from torchtem.physics import reciprocal_mesh
 
 
 class DiffractionIntensity(nn.Module):
@@ -46,7 +46,7 @@ class AnnularDetector(nn.Module):
         self.intensity = DiffractionIntensity()
 
     def angle_components(self, wave: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        from tspi.torchtem.physics import energy2wavelength
+        from torchtem.physics import energy2wavelength
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(self.gpts, self.sampling, device=wave.device, dtype=self.dtype)
@@ -101,7 +101,7 @@ class FlexibleAnnularDetector(nn.Module):
         self.intensity = DiffractionIntensity()
 
     def _angle_components(self, wave: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        from tspi.torchtem.physics import energy2wavelength
+        from torchtem.physics import energy2wavelength
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(self.gpts, self.sampling, device=wave.device, dtype=self.dtype)
@@ -218,7 +218,7 @@ class PixelatedDetector(nn.Module):
             return torch.ones(wave.shape[-2:], device=wave.device, dtype=self.dtype)
         if self.energy_eV is None or self.sampling is None:
             raise ValueError("energy_eV and sampling are required when max_angle_mrad is set")
-        from tspi.torchtem.physics import energy2wavelength
+        from torchtem.physics import energy2wavelength
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(wave.shape[-2:], self.sampling, device=wave.device, dtype=self.dtype)
@@ -339,7 +339,7 @@ class SegmentedDetector(nn.Module):
         self.intensity = DiffractionIntensity()
 
     def bins(self, wave: torch.Tensor) -> torch.Tensor:
-        from tspi.torchtem.physics import energy2wavelength
+        from torchtem.physics import energy2wavelength
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(self.gpts, self.sampling, device=wave.device, dtype=self.dtype)

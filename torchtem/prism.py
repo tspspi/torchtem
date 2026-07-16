@@ -5,10 +5,10 @@ import math
 import torch
 from torch import nn
 
-from tspi.torchtem.natural_neighbors import pairwise_natural_neighbor_weights
-from tspi.torchtem.optics import AberrationCoefficients, CTF
-from tspi.torchtem.physics import spatial_frequencies
-from tspi.torchtem.physics import energy2wavelength
+from torchtem.natural_neighbors import pairwise_natural_neighbor_weights
+from torchtem.optics import AberrationCoefficients, CTF
+from torchtem.physics import spatial_frequencies
+from torchtem.physics import energy2wavelength
 
 
 def prism_wave_vectors(

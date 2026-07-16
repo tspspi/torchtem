@@ -6,8 +6,8 @@ from typing import Sequence
 import numpy as np
 import torch
 
-from tspi.torchtem.parametrizations import Parametrization, validate_parametrization
-from tspi.torchtem.physics import ensure_tuple2, real_space_mesh, reciprocal_mesh, spatial_frequencies
+from torchtem.parametrizations import Parametrization, validate_parametrization
+from torchtem.physics import ensure_tuple2, real_space_mesh, reciprocal_mesh, spatial_frequencies
 
 
 class FieldIntegrator(ABC):

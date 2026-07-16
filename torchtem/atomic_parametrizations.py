@@ -8,8 +8,8 @@ from typing import Sequence
 import torch
 from torch import nn
 
-from tspi.torchtem.constants import kappa
-from tspi.torchtem.physics import ensure_tuple2, real_space_mesh
+from torchtem.constants import kappa
+from torchtem.physics import ensure_tuple2, real_space_mesh
 
 
 def _parametrization_data_path(filename: str) -> Path:

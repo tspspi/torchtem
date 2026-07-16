@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 
-from tspi.torchtem.plotting import plot_detector_outputs, plot_series_outputs
+from torchtem.plotting import plot_detector_outputs, plot_series_outputs
 
 
 def _to_cpu_value(value: Any) -> Any:

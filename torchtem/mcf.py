@@ -5,8 +5,8 @@ import math
 import torch
 from torch import nn
 
-from tspi.torchtem.optics import CTF
-from tspi.torchtem.physics import spatial_frequencies
+from torchtem.optics import CTF
+from torchtem.physics import spatial_frequencies
 
 
 class DiagonalMCF(nn.Module):

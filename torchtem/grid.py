@@ -6,7 +6,7 @@ from typing import Callable, Optional, Sequence, TypeVar
 
 import numpy as np
 
-from tspi.torchtem.misc_utils import CopyMixin, EqualityMixin
+from torchtem.misc_utils import CopyMixin, EqualityMixin
 
 T = TypeVar("T", int, float)
 U = TypeVar("U")

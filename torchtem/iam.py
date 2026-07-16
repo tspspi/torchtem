@@ -5,7 +5,7 @@ from typing import Sequence
 import torch
 from torch import nn
 
-from tspi.torchtem.atomic_parametrizations import (
+from torchtem.atomic_parametrizations import (
     kirkland_scaled_projected_parameters,
     lobato_scaled_projected_parameters,
     peng_scaled_parameters,
@@ -13,13 +13,13 @@ from tspi.torchtem.atomic_parametrizations import (
     render_lobato_projected_potential,
     render_peng_finite_projected_potential,
 )
-from tspi.torchtem.core_loss import electron_configurations
-from tspi.torchtem.integrals import (
+from torchtem.core_loss import electron_configurations
+from torchtem.integrals import (
     GaussianProjectionIntegrals,
     QuadratureProjectionIntegrals,
     ScatteringFactorProjectionIntegrals,
 )
-from tspi.torchtem.slicing import slice_limits, validate_slice_thickness
+from torchtem.slicing import slice_limits, validate_slice_thickness
 
 
 def _atomic_symbol_to_number() -> dict[str, int]:

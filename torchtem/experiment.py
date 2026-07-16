@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 import torch
 from torch import nn
 
-from tspi.torchtem.assembly import (
+from torchtem.assembly import (
     BatchDetectorReadout,
     DetectorReadout,
     LayerStack,
@@ -14,9 +14,9 @@ from tspi.torchtem.assembly import (
     ScanLayer,
     apply_detector_recursive,
 )
-from tspi.torchtem.bloch import BlochWaveModel, StructureFactorModel, calculate_g_vec
-from tspi.torchtem.coherence import CoherenceAverager, CoherenceEnsemble
-from tspi.torchtem.detectors import (
+from torchtem.bloch import BlochWaveModel, StructureFactorModel, calculate_g_vec
+from torchtem.coherence import CoherenceAverager, CoherenceEnsemble
+from torchtem.detectors import (
     AnnularDetector,
     FlexibleAnnularDetector,
     ImageDetector,
@@ -24,13 +24,13 @@ from tspi.torchtem.detectors import (
     SegmentedDetector,
     WavesDetector,
 )
-from tspi.torchtem.fft_support import fft_interpolate
-from tspi.torchtem.inelastic import PlasmonScatteringEvents
-from tspi.torchtem.magnetism import PauliVectorPotentialInteraction
-from tspi.torchtem.mcf import DiagonalMCF
-from tspi.torchtem.multislice import MultisliceSystem
-from tspi.torchtem.optics import AberrationCoefficients, CTF, PlaneWave, Probe
-from tspi.torchtem.pipelines import (
+from torchtem.fft_support import fft_interpolate
+from torchtem.inelastic import PlasmonScatteringEvents
+from torchtem.magnetism import PauliVectorPotentialInteraction
+from torchtem.mcf import DiagonalMCF
+from torchtem.multislice import MultisliceSystem
+from torchtem.optics import AberrationCoefficients, CTF, PlaneWave, Probe
+from torchtem.pipelines import (
     CenterOfMassConfig,
     GaussianBlurConfig,
     IntegrateGradientConfig,
@@ -40,12 +40,12 @@ from tspi.torchtem.pipelines import (
     ScanDistortionConfig,
     build_measurement_pipeline,
 )
-from tspi.torchtem.realspace_multislice import RealSpaceMultisliceSystem
-from tspi.torchtem.results import SimulationResult, SimulationSeriesResult
-from tspi.torchtem.physics import spatial_frequencies
-from tspi.torchtem.prism import SMatrixBuilder, smatrix_wave_vectors
-from tspi.torchtem.scan import CustomScan, GridScan, fft_shift_wave
-from tspi.torchtem.tilt import apply_beam_tilt
+from torchtem.realspace_multislice import RealSpaceMultisliceSystem
+from torchtem.results import SimulationResult, SimulationSeriesResult
+from torchtem.physics import spatial_frequencies
+from torchtem.prism import SMatrixBuilder, smatrix_wave_vectors
+from torchtem.scan import CustomScan, GridScan, fft_shift_wave
+from torchtem.tilt import apply_beam_tilt
 
 
 @dataclass

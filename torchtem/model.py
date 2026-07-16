@@ -3,11 +3,11 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from tspi.torchtem.coherence import CoherenceAverager
-from tspi.torchtem.detectors import AnnularDetector
-from tspi.torchtem.multislice import MultisliceSystem
-from tspi.torchtem.optics import Probe
-from tspi.torchtem.scan import CustomScan, GridScan, fft_shift_wave
+from torchtem.coherence import CoherenceAverager
+from torchtem.detectors import AnnularDetector
+from torchtem.multislice import MultisliceSystem
+from torchtem.optics import Probe
+from torchtem.scan import CustomScan, GridScan, fft_shift_wave
 
 
 class TEMModel(nn.Module):

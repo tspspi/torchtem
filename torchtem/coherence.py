@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from tspi.torchtem.complex_support import abs2
-from tspi.torchtem.scan import fft_shift_wave
+from torchtem.complex_support import abs2
+from torchtem.scan import fft_shift_wave
 
 
 @dataclass

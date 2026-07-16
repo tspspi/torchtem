@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from tspi.torchtem.potentials import render_gaussian_projection
+from torchtem.potentials import render_gaussian_projection
 
 
 @dataclass

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from tspi.torchtem.multislice import FresnelPropagator
+from torchtem.multislice import FresnelPropagator
 
 
 def wrapped_patch_indices(

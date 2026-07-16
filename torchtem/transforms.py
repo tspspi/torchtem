@@ -7,8 +7,8 @@ from typing import Any, Callable, Sequence
 import torch
 from torch import nn
 
-from tspi.torchtem.distributions import DistributionFromValues
-from tspi.torchtem.fft_support import fft2, ifft2
+from torchtem.distributions import DistributionFromValues
+from torchtem.fft_support import fft2, ifft2
 
 
 def join_tuples(tuples: tuple[tuple[Any, ...], ...]) -> tuple[Any, ...]:

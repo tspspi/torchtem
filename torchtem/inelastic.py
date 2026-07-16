@@ -7,10 +7,10 @@ import numpy as np
 import torch
 from torch import nn
 
-from tspi.torchtem.complex_support import abs2
-from tspi.torchtem.fft_support import fft2, fft2_convolve
-from tspi.torchtem.physics import ensure_tuple2, real_space_mesh
-from tspi.torchtem.scan import fft_shift_wave
+from torchtem.complex_support import abs2
+from torchtem.fft_support import fft2, fft2_convolve
+from torchtem.physics import ensure_tuple2, real_space_mesh
+from torchtem.scan import fft_shift_wave
 
 
 def draw_scattering_depths(

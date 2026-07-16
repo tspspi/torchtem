@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 import numpy as np
 import torch
 
-from tspi.torchtem.physics import energy2wavelength
+from torchtem.physics import energy2wavelength
 
 
 def reciprocal_cell(cell: torch.Tensor | np.ndarray) -> torch.Tensor:

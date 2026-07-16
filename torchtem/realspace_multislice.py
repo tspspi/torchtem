@@ -5,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import energy2sigma, energy2wavelength
+from torchtem.physics import energy2sigma, energy2wavelength
 
 
 class RealSpaceLaplaceOperator(nn.Module):

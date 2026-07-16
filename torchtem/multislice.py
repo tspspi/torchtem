@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import energy2sigma, energy2wavelength, reciprocal_mesh
+from torchtem.physics import energy2sigma, energy2wavelength, reciprocal_mesh
 
 
 class FresnelPropagator(nn.Module):

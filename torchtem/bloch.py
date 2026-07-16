@@ -3,10 +3,10 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from tspi.torchtem.constants import kappa
-from tspi.torchtem.bloch_utils import calculate_M_matrix
-from tspi.torchtem.matrix_exponential import expm
-from tspi.torchtem.physics import energy2sigma, energy2wavelength
+from torchtem.constants import kappa
+from torchtem.bloch_utils import calculate_M_matrix
+from torchtem.matrix_exponential import expm
+from torchtem.physics import energy2sigma, energy2wavelength
 
 
 def reciprocal_cell(cell: torch.Tensor) -> torch.Tensor:

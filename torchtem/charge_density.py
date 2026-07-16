@@ -5,8 +5,8 @@ import math
 import torch
 from torch import nn
 
-from tspi.torchtem.atoms import is_cell_orthogonal
-from tspi.torchtem.slicing import validate_slice_thickness
+from torchtem.atoms import is_cell_orthogonal
+from torchtem.slicing import validate_slice_thickness
 
 
 def _is_cell_nonsingular(cell: torch.Tensor, tol: float = 1e-12) -> bool:

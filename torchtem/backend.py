@@ -9,7 +9,7 @@ import scipy
 import scipy.ndimage
 import torch
 
-import tspi.torchtem.config as config
+import torchtem.config as config
 
 try:
     import cupy as cp  # type: ignore

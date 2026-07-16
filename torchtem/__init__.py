@@ -1,27 +1,27 @@
 """Differentiable TEM operators implemented with PyTorch."""
 
-from tspi.torchtem.antialias import AntialiasFilter, antialias_aperture
-from tspi.torchtem.assembly import (
+from torchtem.antialias import AntialiasFilter, antialias_aperture
+from torchtem.assembly import (
     BatchDetectorReadout,
     DetectorReadout,
     LayerStack,
     PotentialSliceInteraction,
     ScanLayer,
 )
-from tspi.torchtem.array_object import (
+from torchtem.array_object import (
     ArrayObject,
     ComputableList,
     _validate_array_items,
     validate_lazy,
 )
-from tspi.torchtem.atoms import (
+from torchtem.atoms import (
     is_cell_hexagonal,
     is_cell_orthogonal,
     is_cell_valid,
     plane_to_axes,
     standardize_cell,
 )
-from tspi.torchtem.axes import (
+from torchtem.axes import (
     AxesParameterAxis,
     AxesMetadataList,
     AxisAlignedTiltAxis,
@@ -45,7 +45,7 @@ from tspi.torchtem.axes import (
     axis_to_dict,
     format_axes_metadata,
 )
-from tspi.torchtem.backend import (
+from torchtem.backend import (
     asnumpy,
     check_cupy_is_installed,
     copy_to_device,
@@ -57,15 +57,15 @@ from tspi.torchtem.backend import (
     is_gpu_dask_client,
     validate_device,
 )
-from tspi.torchtem.chunks import (
+from torchtem.chunks import (
     assert_chunks_match_shape,
     chunk_ranges,
     fill_in_chunk_sizes,
     iterate_chunk_ranges,
     validate_chunks,
 )
-from tspi.torchtem.coherence import CoherenceAverager, CoherenceEnsemble
-from tspi.torchtem.charge_density import (
+from torchtem.coherence import CoherenceAverager, CoherenceEnsemble
+from torchtem.charge_density import (
     ChargeDensityPotential,
     add_point_charges_fourier,
     fourier_space_delta,
@@ -78,14 +78,14 @@ from tspi.torchtem.charge_density import (
     spatial_frequencies_orthorhombic,
     spatial_frequencies_squared,
 )
-from tspi.torchtem.constants import eps0, kappa
-import tspi.torchtem.config as config
-from tspi.torchtem.complex_support import (
+from torchtem.constants import eps0, kappa
+import torchtem.config as config
+from torchtem.complex_support import (
     abs2,
     complex_exponential,
     complex_exponential_scaled,
 )
-from tspi.torchtem.core_loss import (
+from torchtem.core_loss import (
     AtomicWaveQuantumNumbers,
     CoreLossTransitionPotential,
     SubshellTransitions,
@@ -97,15 +97,15 @@ from tspi.torchtem.core_loss import (
     electron_configurations,
     remove_electron_from_config_str,
 )
-from tspi.torchtem.cuda_support import interpolate_radial, sum_run_length_encoded
-from tspi.torchtem.diagnostics import TqdmWrapper
-from tspi.torchtem.ensemble import (
+from torchtem.cuda_support import interpolate_radial, sum_run_length_encoded
+from torchtem.diagnostics import TqdmWrapper
+from torchtem.ensemble import (
     EmptyEnsemble,
     Ensemble,
     concatenate_array_blocks,
     unpack_blockwise_args,
 )
-from tspi.torchtem.experiment import (
+from torchtem.experiment import (
     AnnularDetectorConfig,
     BlochConfig,
     CoherenceConfig,
@@ -128,7 +128,7 @@ from tspi.torchtem.experiment import (
     STEMConfig,
     WavesDetectorConfig,
 )
-from tspi.torchtem.atomic_parametrizations import (
+from torchtem.atomic_parametrizations import (
     EwaldPotentialProjection,
     PengFiniteProjectedPotential,
     KirklandProjectedPotential,
@@ -142,7 +142,7 @@ from tspi.torchtem.atomic_parametrizations import (
     render_lobato_projected_potential,
     render_peng_finite_projected_potential,
 )
-from tspi.torchtem.bloch import (
+from torchtem.bloch import (
     BlochWaveModel,
     StructureFactorModel,
     calculate_dynamical_scattering,
@@ -152,7 +152,7 @@ from tspi.torchtem.bloch import (
     excitation_errors,
     reciprocal_cell,
 )
-from tspi.torchtem.bloch_utils import (
+from torchtem.bloch_utils import (
     all_positions_have_relative_periodic_pair,
     calculate_M_matrix,
     auto_detect_centering,
@@ -171,7 +171,7 @@ from tspi.torchtem.bloch_utils import (
     retrieve_structure_factor_values,
     wrapped_is_close,
 )
-from tspi.torchtem.bloch_indexing import (
+from torchtem.bloch_indexing import (
     antialiased_disk,
     create_ellipse,
     estimate_necessary_excitation_error,
@@ -183,7 +183,7 @@ from tspi.torchtem.bloch_indexing import (
     pixel_edges,
     validate_cell,
 )
-from tspi.torchtem.detectors import (
+from torchtem.detectors import (
     AnnularDetector,
     DiffractionIntensity,
     FlexibleAnnularDetector,
@@ -192,8 +192,8 @@ from tspi.torchtem.detectors import (
     SegmentedDetector,
     WavesDetector,
 )
-from tspi.torchtem.frozen_phonons import FrozenPhononGaussianEnsemble, FrozenPhononSpec
-from tspi.torchtem.gpaw_builders import (
+from torchtem.frozen_phonons import FrozenPhononGaussianEnsemble, FrozenPhononSpec
+from torchtem.gpaw_builders import (
     BOHR_MAGNETON,
     VACUUM_PERMEABILITY,
     GPAWLikeState,
@@ -207,19 +207,19 @@ from tspi.torchtem.gpaw_builders import (
     integrate_slice_fft,
     rotate_vector_field,
 )
-from tspi.torchtem.gpaw_parametrization import (
+from torchtem.gpaw_parametrization import (
     GPAWParametrization,
     LobatoFitResult,
     LobatoScatteringFactorFitter,
 )
-from tspi.torchtem.grid import (
+from torchtem.grid import (
     Grid,
     GridUndefinedError,
     HasGrid2DMixin,
     adjusted_gpts,
     validate_gpts,
 )
-from tspi.torchtem.inelastic import (
+from torchtem.inelastic import (
     MonteCarloPlasmons,
     PlasmonEventSpec,
     PlasmonScatteringEvents,
@@ -229,8 +229,8 @@ from tspi.torchtem.inelastic import (
     draw_scattering_depths,
     excitations_weights,
 )
-from tspi.torchtem.iam import IAMPotentialBuilder
-from tspi.torchtem.integrals import (
+from torchtem.iam import IAMPotentialBuilder
+from torchtem.integrals import (
     FieldIntegrator,
     GaussianProjectionIntegrals,
     ProjectionIntegralTable,
@@ -243,7 +243,7 @@ from tspi.torchtem.integrals import (
     sinc,
     superpose_deltas,
 )
-from tspi.torchtem.magnetism import (
+from torchtem.magnetism import (
     LyonProjectedMagneticField,
     LyonProjectedVectorPotential,
     PauliVectorPotentialInteraction,
@@ -253,21 +253,21 @@ from tspi.torchtem.magnetism import (
     projected_quasi_dipole_magnetic_field,
     projected_quasi_dipole_vector_potential,
 )
-from tspi.torchtem.magnetic_utils import (
+from torchtem.magnetic_utils import (
     bohr_magneton,
     saturation_magnetization,
     set_magnetic_moments,
     vacuum_permeability,
 )
-from tspi.torchtem.magnetic_parametrizations import (
+from torchtem.magnetic_parametrizations import (
     LyonMagneticParametrization,
     get_magnetic_parameters,
     validate_magnetic_parametrization,
 )
-from tspi.torchtem.matrix_exponential import expm
-from tspi.torchtem.measurements import CenterOfMass, GaussianBlur, IntegrateGradient
-from tspi.torchtem.mcf import DiagonalMCF
-from tspi.torchtem.misc_utils import (
+from torchtem.matrix_exponential import expm
+from torchtem.measurements import CenterOfMass, GaussianBlur, IntegrateGradient
+from torchtem.mcf import DiagonalMCF
+from torchtem.misc_utils import (
     CopyMixin,
     EqualityMixin,
     ensure_list,
@@ -279,12 +279,12 @@ from tspi.torchtem.misc_utils import (
     safe_equality,
     safe_floor_int,
 )
-from tspi.torchtem.model import TEMModel
-from tspi.torchtem.multislice import FresnelPropagator, MultisliceSystem
-from tspi.torchtem.mtf import MTF, default_mtf_func
-from tspi.torchtem.noise import PoissonNoise, ScanDistortion
-from tspi.torchtem.optics import AberrationCoefficients, CTF, Probe
-from tspi.torchtem.parametrizations import (
+from torchtem.model import TEMModel
+from torchtem.multislice import FresnelPropagator, MultisliceSystem
+from torchtem.mtf import MTF, default_mtf_func
+from torchtem.noise import PoissonNoise, ScanDistortion
+from torchtem.optics import AberrationCoefficients, CTF, Probe
+from torchtem.parametrizations import (
     EwaldParametrization,
     KirklandParametrization,
     LobatoParametrization,
@@ -293,7 +293,7 @@ from tspi.torchtem.parametrizations import (
     WaasmaierKirfelParametrization,
     validate_parametrization,
 )
-from tspi.torchtem.poisson_helpers import (
+from torchtem.poisson_helpers import (
     load_waasmaier_kirfel_parameters,
     real_sph_harm,
     spherical_coordinates,
@@ -302,7 +302,7 @@ from tspi.torchtem.poisson_helpers import (
     sum_spherical_basis_functions,
     unpack_density_matrix,
 )
-from tspi.torchtem.pipelines import (
+from torchtem.pipelines import (
     CenterOfMassConfig,
     ConfiguredIntegrateGradient,
     ConfiguredMTF,
@@ -316,10 +316,10 @@ from tspi.torchtem.pipelines import (
     build_measurement_pipeline,
     build_pipeline_step,
 )
-from tspi.torchtem.physics import energy2sigma, energy2wavelength
-from tspi.torchtem.plotting import plot_detector_outputs, plot_series_outputs
-from tspi.torchtem.potentials import GaussianAtomProjection
-from tspi.torchtem.prism import (
+from torchtem.physics import energy2sigma, energy2wavelength
+from torchtem.plotting import plot_detector_outputs, plot_series_outputs
+from torchtem.potentials import GaussianAtomProjection
+from torchtem.prism import (
     PartitionedSMatrixInterpolator,
     SMatrixArray,
     SMatrixBuilder,
@@ -338,7 +338,7 @@ from tspi.torchtem.prism import (
     reduce_beamlets_nearest_no_interpolation,
     remove_tilt,
 )
-from tspi.torchtem.prism_utils import (
+from torchtem.prism_utils import (
     batch_crop_2d,
     minimum_crop,
     prism_coefficients,
@@ -346,11 +346,11 @@ from tspi.torchtem.prism_utils import (
     wrapped_crop_2d,
     wrapped_slices,
 )
-from tspi.torchtem.realspace_multislice import (
+from torchtem.realspace_multislice import (
     RealSpaceLaplaceOperator,
     RealSpaceMultisliceSystem,
 )
-from tspi.torchtem.reconstruction import (
+from torchtem.reconstruction import (
     MultislicePtychographyForwardModel,
     MultislicePtychographyReconstructor,
     PtychographyForwardModel,
@@ -358,15 +358,15 @@ from tspi.torchtem.reconstruction import (
     RPIEReconstructor,
     amplitude_projection,
 )
-from tspi.torchtem.results import SimulationResult, SimulationSeriesResult
-from tspi.torchtem.scan import CustomScan, GridScan, fft_shift_wave
-from tspi.torchtem.slicing import (
+from torchtem.results import SimulationResult, SimulationSeriesResult
+from torchtem.scan import CustomScan, GridScan, fft_shift_wave
+from torchtem.slicing import (
     SlicedAtoms,
     crystal_slice_thicknesses,
     slice_limits,
     validate_slice_thickness,
 )
-from tspi.torchtem.distributions import (
+from torchtem.distributions import (
     DistributionFromValues,
     MultidimensionalDistribution,
     from_values,
@@ -374,7 +374,7 @@ from tspi.torchtem.distributions import (
     uniform,
     validate_distribution,
 )
-from tspi.torchtem.fft_support import (
+from torchtem.fft_support import (
     fft2,
     fft2_convolve,
     fft_crop,
@@ -386,7 +386,7 @@ from tspi.torchtem.fft_support import (
     ifft2,
     ifftn,
 )
-from tspi.torchtem.tilt import (
+from torchtem.tilt import (
     AxisAlignedBeamTilt,
     BeamTilt,
     BeamTilt2D,
@@ -394,7 +394,7 @@ from tspi.torchtem.tilt import (
     apply_beam_tilt,
     precession_tilts,
 )
-from tspi.torchtem.transforms import (
+from torchtem.transforms import (
     EmptyTransform,
     EnsembleTransform,
     KernelTransform,
@@ -405,13 +405,13 @@ from tspi.torchtem.transforms import (
     TransformFromFunc,
     join_tuples,
 )
-from tspi.torchtem.units import (
+from torchtem.units import (
     format_units,
     get_conversion_factor,
     units_type,
     validate_units,
 )
-from tspi.torchtem.waves import (
+from torchtem.waves import (
     BaseWaves,
     PlaneWaveBuilder,
     ProbeWavesBuilder,

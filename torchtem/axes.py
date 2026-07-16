@@ -8,9 +8,9 @@ from typing import Any, Optional
 
 import numpy as np
 
-from tspi.torchtem.chunks import iterate_chunk_ranges, validate_chunks
-from tspi.torchtem.misc_utils import safe_equality
-from tspi.torchtem.units import format_units, get_conversion_factor, validate_units
+from torchtem.chunks import iterate_chunk_ranges, validate_chunks
+from torchtem.misc_utils import safe_equality
+from torchtem.units import format_units, get_conversion_factor, validate_units
 
 
 def format_label(axis: AxisMetadata, units: Optional[str] = None) -> str:

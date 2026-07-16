@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch
 
-from tspi.torchtem.physics import energy2wavelength
+from torchtem.physics import energy2wavelength
 
 
 def batch_crop_2d(

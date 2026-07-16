@@ -7,12 +7,12 @@ import matplotlib
 import torch
 
 if __package__ in (None, ""):
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from tspi.torchtem import (
+from torchtem import (
     AnnularDetectorConfig,
     ExperimentBuilder,
     GaussianAtomProjection,

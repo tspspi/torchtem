@@ -4,8 +4,8 @@ import math
 
 import torch
 
-from tspi.torchtem.bloch import excitation_errors, reciprocal_cell
-from tspi.torchtem.physics import polar_spatial_frequencies
+from torchtem.bloch import excitation_errors, reciprocal_cell
+from torchtem.physics import polar_spatial_frequencies
 
 
 def pixel_edges(

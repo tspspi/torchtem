@@ -5,10 +5,10 @@ from dataclasses import dataclass
 
 import torch
 
-from tspi.torchtem.atomic_parametrizations import _load_lobato_parameters
-from tspi.torchtem.constants import kappa
-from tspi.torchtem.core_loss import config_str_to_config_tuples, electron_configurations
-from tspi.torchtem.parametrizations import LobatoParametrization
+from torchtem.atomic_parametrizations import _load_lobato_parameters
+from torchtem.constants import kappa
+from torchtem.core_loss import config_str_to_config_tuples, electron_configurations
+from torchtem.parametrizations import LobatoParametrization
 
 
 def _lobato_scattering_factor(k2: torch.Tensor, parameters: torch.Tensor) -> torch.Tensor:

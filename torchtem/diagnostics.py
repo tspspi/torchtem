@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from tqdm.auto import tqdm
 
-import tspi.torchtem.config as config_module
+import torchtem.config as config_module
 
 
 class TqdmWrapper:

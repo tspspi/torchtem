@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Optional
 
-from tspi.torchtem.physics import energy2wavelength
+from torchtem.physics import energy2wavelength
 
 _unit_categories = {
     "real_space": ("Å", "Angstrom", "nm", "um", "mm", "m"),

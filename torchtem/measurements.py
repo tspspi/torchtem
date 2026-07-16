@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import reciprocal_mesh
+from torchtem.physics import reciprocal_mesh
 
 
 class GaussianBlur(nn.Module):

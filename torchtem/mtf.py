@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import reciprocal_mesh
+from torchtem.physics import reciprocal_mesh
 
 
 def default_mtf_func(k: torch.Tensor, c0: float, c1: float, c2: float, c3: float) -> torch.Tensor:

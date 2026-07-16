@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from tspi.torchtem.distributions import DistributionFromValues, from_values, validate_distribution
-from tspi.torchtem.physics import energy2wavelength, real_space_mesh
+from torchtem.distributions import DistributionFromValues, from_values, validate_distribution
+from torchtem.physics import energy2wavelength, real_space_mesh
 
 
 def precession_tilts(

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from tspi.torchtem.physics import energy2wavelength, polar_spatial_frequencies
+from torchtem.physics import energy2wavelength, polar_spatial_frequencies
 
 
 @dataclass
