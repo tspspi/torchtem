@@ -183,6 +183,14 @@ class BlochConfig:
     use_wave_eq: bool = False
 
 
+@dataclass(frozen=True)
+class ParameterVectorEntry:
+    name: str
+    shape: tuple[int, ...]
+    start: int
+    stop: int
+
+
 @dataclass
 class ExperimentConfig:
     source: PlaneWaveSourceConfig | ProbeSourceConfig
@@ -713,7 +721,10 @@ class StaticWaveShiftLayer(nn.Module):
     ) -> None:
         super().__init__()
         self.sampling = sampling
-        self.register_buffer("position_A", torch.tensor(position_A, dtype=torch.float64))
+        self.register_parameter(
+            "position_A",
+            nn.Parameter(torch.tensor(position_A, dtype=torch.float64)),
+        )
 
     def forward(self, wave: torch.Tensor) -> torch.Tensor:
         return fft_shift_wave(wave, self.position_A, self.sampling)
@@ -1352,6 +1363,65 @@ class ExperimentBuilder(nn.Module):
     def parameter_tensor_dict(self) -> dict[str, torch.Tensor]:
         return {name: param for name, param in self.named_parameters()}
 
+    def _is_tem_parameter_name(self, name: str) -> bool:
+        tem_prefixes = (
+            "source.",
+            "stack.layers.source_tilt.",
+            "stack.layers.source_position.",
+            "stack.layers.scan.",
+            "stack.layers.detector.",
+            "stack.layers.coherence.",
+        )
+        return any(name.startswith(prefix) for prefix in tem_prefixes)
+
+    def tem_parameter_tensor_dict(self) -> dict[str, torch.Tensor]:
+        return {
+            name: param
+            for name, param in self.parameter_tensor_dict().items()
+            if self._is_tem_parameter_name(name)
+        }
+
+    def tem_parameter_layout(self) -> tuple[ParameterVectorEntry, ...]:
+        entries: list[ParameterVectorEntry] = []
+        offset = 0
+        for name, param in self.tem_parameter_tensor_dict().items():
+            width = int(param.numel())
+            entries.append(
+                ParameterVectorEntry(
+                    name=name,
+                    shape=tuple(param.shape),
+                    start=offset,
+                    stop=offset + width,
+                )
+            )
+            offset += width
+        return tuple(entries)
+
+    def tem_parameter_names(self) -> tuple[str, ...]:
+        return tuple(entry.name for entry in self.tem_parameter_layout())
+
+    def tem_parameter_vector(self) -> torch.Tensor:
+        parameters = tuple(self.tem_parameter_tensor_dict().values())
+        if not parameters:
+            return torch.empty(0, dtype=torch.float64)
+        return torch.cat([parameter.reshape(-1) for parameter in parameters], dim=0)
+
+    def set_tem_parameter_vector(
+        self,
+        values: torch.Tensor | Sequence[float | complex],
+    ) -> None:
+        vector = torch.as_tensor(values, dtype=torch.float64).reshape(-1)
+        layout = self.tem_parameter_layout()
+        expected = 0 if not layout else layout[-1].stop
+        if vector.numel() != expected:
+            raise ValueError(
+                f"TEM parameter vector has {vector.numel()} entries, expected {expected}"
+            )
+
+        for entry in layout:
+            value = vector[entry.start : entry.stop].reshape(entry.shape)
+            self.set_parameter(entry.name, value)
+
     def _resolve_parameter_name(self, name: str) -> str:
         parameters = self.parameter_tensor_dict()
         if name in parameters:
@@ -1465,5 +1535,67 @@ class ExperimentBuilder(nn.Module):
                 "propagation_backend": self.config.multislice.backend,
                 "postprocessed": self.config.postprocess is not None,
                 "series_parameter_name": resolved_name,
+            },
+        )
+
+    def run_tem_parameter_series(
+        self,
+        values: torch.Tensor | Sequence[Sequence[float | complex]],
+    ) -> SimulationSeriesResult:
+        original = self.tem_parameter_vector().detach().clone()
+        values_tensor = torch.as_tensor(values, dtype=torch.float64)
+        if values_tensor.ndim == 1:
+            values_tensor = values_tensor.unsqueeze(0)
+        values_tensor = values_tensor.reshape(values_tensor.shape[0], -1)
+
+        if values_tensor.shape[1] != original.numel():
+            raise ValueError(
+                f"TEM parameter series expects vectors of length {original.numel()}, "
+                f"received {values_tensor.shape[1]}"
+            )
+
+        def _stack_outputs(items: list[torch.Tensor | Mapping[str, torch.Tensor]]):
+            first = items[0]
+            if isinstance(first, Mapping):
+                return {
+                    name: torch.stack([item[name] for item in items], dim=0)
+                    for name in first
+                }
+            return torch.stack(items, dim=0)
+
+        try:
+            outputs: list[torch.Tensor | Mapping[str, torch.Tensor]] = []
+            for value in values_tensor:
+                self.set_tem_parameter_vector(value)
+                outputs.append(self.forward(return_intermediates=False))
+        finally:
+            self.set_tem_parameter_vector(original)
+
+        layout = self.tem_parameter_layout()
+        return SimulationSeriesResult(
+            outputs=_stack_outputs(outputs),
+            parameter_name="tem_parameter_vector",
+            parameter_values=values_tensor.detach().clone(),
+            detector_names=detector_names_from_config(self.config),
+            metadata={
+                "mode": infer_mode(self.config),
+                "scanned": self.config.scan is not None,
+                "coherent_average": self.config.coherence is not None,
+                "coherence_model": None if self.config.coherence is None else self.config.coherence.mode,
+                "inelastic": self.config.inelastic is not None,
+                "magnetic": self.config.magnetic is not None,
+                "num_slices": self.config.multislice.num_slices,
+                "propagation_backend": self.config.multislice.backend,
+                "postprocessed": self.config.postprocess is not None,
+                "series_parameter_name": "tem_parameter_vector",
+                "series_parameter_layout": [
+                    {
+                        "name": entry.name,
+                        "shape": entry.shape,
+                        "start": entry.start,
+                        "stop": entry.stop,
+                    }
+                    for entry in layout
+                ],
             },
         )

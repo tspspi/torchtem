@@ -105,7 +105,12 @@ def main() -> None:
 
     defocus_values_A = torch.tensor([-180.0, -60.0, 60.0, 180.0], dtype=torch.float64)
     experiment = build_experiment(image_defocus_A=float(defocus_values_A[0].item()))
-    series = experiment.run_parameter_series("image.ctf.C10", defocus_values_A)
+    base_vector = experiment.tem_parameter_vector().detach().clone()
+    layout = {entry.name: entry for entry in experiment.tem_parameter_layout()}
+    image_defocus_entry = layout["stack.layers.detector.detectors.image.ctf.C10"]
+    parameter_vectors = base_vector.repeat(defocus_values_A.shape[0], 1)
+    parameter_vectors[:, image_defocus_entry.start : image_defocus_entry.stop] = defocus_values_A[:, None]
+    series = experiment.run_tem_parameter_series(parameter_vectors)
     image_panels = [panel.detach().cpu() for panel in series.outputs["image"]]
     image_contrast_panels = [(panel / panel.mean()) - 1.0 for panel in image_panels]
     diffraction_panels = [
@@ -157,6 +162,10 @@ def main() -> None:
 
     print("defocus_values_A:", defocus_values_A)
     print("series_parameter_name:", series.parameter_name)
+    print(
+        "vector_parameter_names:",
+        [entry["name"] for entry in series.metadata["series_parameter_layout"]],
+    )
     print("image_relative_stds:", [float(panel.std()) for panel in image_contrast_panels])
     print("image_limits:", (image_vmin, image_vmax))
     print("log_diffraction_limits:", (diff_vmin, diff_vmax))

@@ -37,9 +37,10 @@ class AnnularDetector(nn.Module):
         self.energy_eV = float(energy_eV)
         self.gpts = gpts
         self.sampling = sampling
-        self.inner_mrad = inner_mrad
-        self.outer_mrad = outer_mrad
-        self.offset_mrad = (float(offset_mrad[0]), float(offset_mrad[1]))
+        self.register_parameter("inner_mrad", nn.Parameter(torch.tensor(float(inner_mrad), dtype=dtype)))
+        self.register_parameter("outer_mrad", nn.Parameter(torch.tensor(float(outer_mrad), dtype=dtype)))
+        self.register_parameter("offset_y_mrad", nn.Parameter(torch.tensor(float(offset_mrad[0]), dtype=dtype)))
+        self.register_parameter("offset_x_mrad", nn.Parameter(torch.tensor(float(offset_mrad[1]), dtype=dtype)))
         self.dtype = dtype
         self.device_hint = device
         self.intensity = DiffractionIntensity()
@@ -49,8 +50,8 @@ class AnnularDetector(nn.Module):
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(self.gpts, self.sampling, device=wave.device, dtype=self.dtype)
-        ay = 1e3 * wavelength * ky - self.offset_mrad[0]
-        ax = 1e3 * wavelength * kx - self.offset_mrad[1]
+        ay = 1e3 * wavelength * ky - self.offset_y_mrad.to(device=wave.device)
+        ax = 1e3 * wavelength * kx - self.offset_x_mrad.to(device=wave.device)
         return ay, ax
 
     def mask(self, wave: torch.Tensor) -> torch.Tensor:
@@ -87,10 +88,14 @@ class FlexibleAnnularDetector(nn.Module):
         self.energy_eV = float(energy_eV)
         self.gpts = gpts
         self.sampling = sampling
-        self.step_size_mrad = float(step_size_mrad)
-        self.inner_mrad = float(inner_mrad)
-        self.outer_mrad = None if outer_mrad is None else float(outer_mrad)
-        self.offset_mrad = (float(offset_mrad[0]), float(offset_mrad[1]))
+        self.register_parameter("step_size_mrad", nn.Parameter(torch.tensor(float(step_size_mrad), dtype=dtype)))
+        self.register_parameter("inner_mrad", nn.Parameter(torch.tensor(float(inner_mrad), dtype=dtype)))
+        if outer_mrad is None:
+            self.outer_mrad = None
+        else:
+            self.register_parameter("outer_mrad", nn.Parameter(torch.tensor(float(outer_mrad), dtype=dtype)))
+        self.register_parameter("offset_y_mrad", nn.Parameter(torch.tensor(float(offset_mrad[0]), dtype=dtype)))
+        self.register_parameter("offset_x_mrad", nn.Parameter(torch.tensor(float(offset_mrad[1]), dtype=dtype)))
         self.dtype = dtype
         self.device_hint = device
         self.intensity = DiffractionIntensity()
@@ -100,8 +105,8 @@ class FlexibleAnnularDetector(nn.Module):
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(self.gpts, self.sampling, device=wave.device, dtype=self.dtype)
-        ay = 1e3 * wavelength * ky - self.offset_mrad[0]
-        ax = 1e3 * wavelength * kx - self.offset_mrad[1]
+        ay = 1e3 * wavelength * ky - self.offset_y_mrad.to(device=wave.device)
+        ax = 1e3 * wavelength * kx - self.offset_x_mrad.to(device=wave.device)
         return ay, ax
 
     def _angles(self, wave: torch.Tensor) -> torch.Tensor:
@@ -110,13 +115,15 @@ class FlexibleAnnularDetector(nn.Module):
 
     def outer_limit(self, wave: torch.Tensor) -> float:
         if self.outer_mrad is not None:
-            return self.outer_mrad
+            return float(self.outer_mrad.detach().item())
         alpha = self._angles(wave)
         return float(alpha.max().item())
 
     def nbins_radial(self, wave: torch.Tensor) -> int:
         outer = self.outer_limit(wave)
-        return max(1, int(math.floor((outer - self.inner_mrad) / self.step_size_mrad)))
+        inner = float(self.inner_mrad.detach().item())
+        step = float(self.step_size_mrad.detach().item())
+        return max(1, int(math.floor((outer - inner) / step)))
 
     def radial_bin_map(self, wave: torch.Tensor) -> torch.Tensor:
         alpha = self._angles(wave)
@@ -157,12 +164,14 @@ class FlexibleAnnularDetector(nn.Module):
         outer = self.outer_mrad if outer_mrad is None else float(outer_mrad)
         inner = float(inner_mrad)
         if outer is None:
-            outer = self.inner_mrad + self.step_size_mrad * radial_bins.shape[-1]
+            outer = float(self.inner_mrad.detach().item()) + float(self.step_size_mrad.detach().item()) * radial_bins.shape[-1]
 
-        start = max(0, int(math.floor((inner - self.inner_mrad) / self.step_size_mrad)))
+        base_inner = float(self.inner_mrad.detach().item())
+        step = float(self.step_size_mrad.detach().item())
+        start = max(0, int(math.floor((inner - base_inner) / step)))
         stop = min(
             radial_bins.shape[-1],
-            int(math.ceil((outer - self.inner_mrad) / self.step_size_mrad)),
+            int(math.ceil((float(outer) - base_inner) / step)),
         )
         if stop <= start:
             return torch.zeros(radial_bins.shape[:-1], device=radial_bins.device, dtype=radial_bins.dtype)
@@ -197,7 +206,10 @@ class PixelatedDetector(nn.Module):
         self.sampling = sampling
         self.reciprocal_space = bool(reciprocal_space)
         self.gpts = None if gpts is None else (int(gpts[0]), int(gpts[1]))
-        self.max_angle_mrad = None if max_angle_mrad is None else float(max_angle_mrad)
+        if max_angle_mrad is None:
+            self.max_angle_mrad = None
+        else:
+            self.register_parameter("max_angle_mrad", nn.Parameter(torch.tensor(float(max_angle_mrad), dtype=dtype)))
         self.dtype = dtype
         self.intensity = DiffractionIntensity()
 
@@ -315,12 +327,13 @@ class SegmentedDetector(nn.Module):
         self.energy_eV = float(energy_eV)
         self.gpts = gpts
         self.sampling = sampling
-        self.inner_mrad = inner_mrad
-        self.outer_mrad = outer_mrad
+        self.register_parameter("inner_mrad", nn.Parameter(torch.tensor(float(inner_mrad), dtype=dtype)))
+        self.register_parameter("outer_mrad", nn.Parameter(torch.tensor(float(outer_mrad), dtype=dtype)))
         self.nbins_radial = int(nbins_radial)
         self.nbins_azimuthal = int(nbins_azimuthal)
-        self.rotation_rad = float(rotation_rad)
-        self.offset_mrad = (float(offset_mrad[0]), float(offset_mrad[1]))
+        self.register_parameter("rotation_rad", nn.Parameter(torch.tensor(float(rotation_rad), dtype=dtype)))
+        self.register_parameter("offset_y_mrad", nn.Parameter(torch.tensor(float(offset_mrad[0]), dtype=dtype)))
+        self.register_parameter("offset_x_mrad", nn.Parameter(torch.tensor(float(offset_mrad[1]), dtype=dtype)))
         self.dtype = dtype
         self.device_hint = device
         self.intensity = DiffractionIntensity()
@@ -330,10 +343,10 @@ class SegmentedDetector(nn.Module):
 
         wavelength = energy2wavelength(self.energy_eV, device=wave.device, dtype=self.dtype)
         ky, kx = reciprocal_mesh(self.gpts, self.sampling, device=wave.device, dtype=self.dtype)
-        ay = 1e3 * wavelength * ky - self.offset_mrad[0]
-        ax = 1e3 * wavelength * kx - self.offset_mrad[1]
+        ay = 1e3 * wavelength * ky - self.offset_y_mrad.to(device=wave.device)
+        ax = 1e3 * wavelength * kx - self.offset_x_mrad.to(device=wave.device)
         alpha = torch.sqrt(ay.square() + ax.square())
-        phi = torch.remainder(torch.atan2(ax, ay) - self.rotation_rad, 2.0 * math.pi)
+        phi = torch.remainder(torch.atan2(ax, ay) - self.rotation_rad.to(device=wave.device), 2.0 * math.pi)
 
         bins = torch.full(self.gpts, -1, device=wave.device, dtype=torch.long)
         valid = (alpha >= self.inner_mrad) & (alpha < self.outer_mrad)

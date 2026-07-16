@@ -108,7 +108,13 @@ def plot_series_outputs(
     """
     import matplotlib.pyplot as plt
 
-    parameter_values = _to_cpu_tensor(parameter_values).reshape(-1)
+    raw_parameter_values = _to_cpu_tensor(parameter_values)
+    if raw_parameter_values.ndim <= 1:
+        parameter_values = raw_parameter_values.reshape(-1)
+        row_labels = [f"{float(parameter_values[row]):.4g}" for row in range(int(parameter_values.shape[0]))]
+    else:
+        parameter_values = raw_parameter_values.reshape(raw_parameter_values.shape[0], -1)
+        row_labels = [f"index {row}" for row in range(int(parameter_values.shape[0]))]
 
     if isinstance(outputs, Mapping):
         names = tuple(str(name) for name in outputs)
@@ -142,7 +148,7 @@ def plot_series_outputs(
                 ax.imshow(panel.numpy(), cmap=cmap, aspect="auto")
             if row == 0:
                 ax.set_title(name)
-            ax.set_ylabel(f"{parameter_name} = {float(parameter_values[row]):.4g}")
+            ax.set_ylabel(f"{parameter_name} = {row_labels[row]}")
 
     fig.tight_layout()
     return fig, axes

@@ -60,19 +60,21 @@ class GridScan(nn.Module):
         dtype: torch.dtype = torch.float64,
     ) -> None:
         super().__init__()
-        self.start_A = ensure_tuple2(start_A)
-        self.end_A = ensure_tuple2(end_A)
+        start_y, start_x = ensure_tuple2(start_A)
+        end_y, end_x = ensure_tuple2(end_A)
+        self.register_parameter("start_y_A", nn.Parameter(torch.tensor(float(start_y), dtype=dtype)))
+        self.register_parameter("start_x_A", nn.Parameter(torch.tensor(float(start_x), dtype=dtype)))
+        self.register_parameter("end_y_A", nn.Parameter(torch.tensor(float(end_y), dtype=dtype)))
+        self.register_parameter("end_x_A", nn.Parameter(torch.tensor(float(end_x), dtype=dtype)))
         self.shape = (int(shape[0]), int(shape[1]))
         self.device_hint = device
         self.dtype = dtype
 
     def positions(self) -> torch.Tensor:
-        y = torch.linspace(
-            self.start_A[0], self.end_A[0], self.shape[0], device=self.device_hint, dtype=self.dtype
-        )
-        x = torch.linspace(
-            self.start_A[1], self.end_A[1], self.shape[1], device=self.device_hint, dtype=self.dtype
-        )
+        y_steps = torch.linspace(0.0, 1.0, self.shape[0], device=self.device_hint, dtype=self.dtype)
+        x_steps = torch.linspace(0.0, 1.0, self.shape[1], device=self.device_hint, dtype=self.dtype)
+        y = self.start_y_A + (self.end_y_A - self.start_y_A) * y_steps
+        x = self.start_x_A + (self.end_x_A - self.start_x_A) * x_steps
         yy, xx = torch.meshgrid(y, x, indexing="ij")
         return torch.stack((yy, xx), dim=-1).reshape(-1, 2)
 
@@ -85,7 +87,10 @@ class CustomScan(nn.Module):
 
     def __init__(self, positions_A: torch.Tensor) -> None:
         super().__init__()
-        self.register_buffer("positions_A", positions_A.to(torch.float64))
+        self.register_parameter(
+            "positions_A",
+            nn.Parameter(positions_A.to(torch.float64)),
+        )
 
     def forward(self) -> torch.Tensor:
         return self.positions_A
