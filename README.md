@@ -4,6 +4,14 @@ This repository contains `torchtem`, a fully differentiable simulator for transm
 
 The main goal was to keep the whole implementation fully differentiable to allow backpropagation through the models and pass in all parameters of the TEM as `torch` vector too.
 
+* [What is covered](#what-is-covered)
+* [Usage](#usage)
+* [Theory](#theory)
+* [CoQ proofs](#coq-proofs)
+* [Examples](#examples)
+
+![](https://raw.githubusercontent.com/tspspi/torchtem/refs/heads/master/_doc/titleimage.png)
+
 ## What is covered
 
 At the moment what is covered:
