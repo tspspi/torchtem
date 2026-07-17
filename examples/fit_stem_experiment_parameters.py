@@ -26,6 +26,16 @@ from torchtem import (
 OUTPUT_DIR = pathlib.Path(__file__).resolve().with_name("output")
 
 
+def _robust_limits(image: torch.Tensor, *, lower: float = 0.01, upper: float = 0.99) -> tuple[float, float]:
+    flat = image.reshape(-1).to(torch.float64)
+    q = torch.quantile(flat, torch.tensor([lower, upper], dtype=flat.dtype))
+    vmin = float(q[0])
+    vmax = float(q[1])
+    if vmax <= vmin:
+        vmax = vmin + 1e-12
+    return vmin, vmax
+
+
 def build_experiment(
     *,
     c10: float,
@@ -33,6 +43,8 @@ def build_experiment(
     amplitudes: torch.Tensor,
     sigmas_A: torch.Tensor,
 ) -> ExperimentBuilder:
+    min_corner = positions_A.amin(dim=0) - 2.5
+    max_corner = positions_A.amax(dim=0) + 2.5
     return ExperimentBuilder.from_stem(
         STEMConfig(
             source=ProbeSourceConfig(
@@ -61,8 +73,8 @@ def build_experiment(
                 outer_mrad=80.0,
             ),
             scan=GridScanConfig(
-                start_A=(0.0, 0.0),
-                end_A=(3.0, 3.0),
+                start_A=tuple(float(value) for value in min_corner),
+                end_A=tuple(float(value) for value in max_corner),
                 shape=(8, 8),
             ),
         )
@@ -109,6 +121,11 @@ def main() -> None:
 
     final_prediction = fit().detach().cpu().reshape(8, 8)
     target_image = target_signal.detach().cpu().reshape(8, 8)
+    display_vmin, display_vmax = _robust_limits(
+        torch.stack([target_image, final_prediction]),
+        lower=0.02,
+        upper=0.98,
+    )
 
     fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.4), dpi=180)
     loss_ax, target_ax, fit_ax = axes
@@ -118,11 +135,23 @@ def main() -> None:
     loss_ax.set_xlabel("step")
     loss_ax.set_ylabel("MSE")
 
-    target_im = target_ax.imshow(target_image.numpy(), cmap="inferno", aspect="equal")
+    target_im = target_ax.imshow(
+        target_image.numpy(),
+        cmap="inferno",
+        aspect="equal",
+        vmin=display_vmin,
+        vmax=display_vmax,
+    )
     target_ax.set_title("Target STEM Signal")
     fig.colorbar(target_im, ax=target_ax, fraction=0.046, pad=0.04)
 
-    fit_im = fit_ax.imshow(final_prediction.numpy(), cmap="inferno", aspect="equal")
+    fit_im = fit_ax.imshow(
+        final_prediction.numpy(),
+        cmap="inferno",
+        aspect="equal",
+        vmin=display_vmin,
+        vmax=display_vmax,
+    )
     fit_ax.set_title("Fitted STEM Signal")
     fig.colorbar(fit_im, ax=fit_ax, fraction=0.046, pad=0.04)
 
