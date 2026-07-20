@@ -1,2 +1,6 @@
 __pycache__
 *.swp
+PARITY_STATUS.md
+algorithms.tsv
+rebuild_snapshot.sh
+snapshot
