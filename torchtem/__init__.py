@@ -283,7 +283,13 @@ from torchtem.model import TEMModel
 from torchtem.multislice import FresnelPropagator, MultisliceSystem
 from torchtem.mtf import MTF, default_mtf_func
 from torchtem.noise import PoissonNoise, ScanDistortion
-from torchtem.optics import AberrationCoefficients, CTF, Probe
+from torchtem.optics import (
+    AberrationCoefficients,
+    CTF,
+    PlaneWave,
+    Probe,
+    evaluate_ctf_from_coefficients,
+)
 from torchtem.parametrizations import (
     EwaldParametrization,
     KirklandParametrization,
@@ -405,6 +411,12 @@ from torchtem.transforms import (
     TransformFromFunc,
     join_tuples,
 )
+from torchtem.tem_stack import (
+    ActiveFixedStackTEMControls,
+    FixedStackTEMControls,
+    FixedStackTEMSimulator,
+    TEMControlEntry,
+)
 from torchtem.units import (
     format_units,
     get_conversion_factor,
@@ -451,6 +463,9 @@ __all__ = [
     "FresnelPropagator",
     "FrozenPhononGaussianEnsemble",
     "FrozenPhononSpec",
+    "ActiveFixedStackTEMControls",
+    "FixedStackTEMControls",
+    "FixedStackTEMSimulator",
     "FieldIntegrator",
     "GaussianAtomProjection",
     "GaussianBlur",
@@ -484,6 +499,7 @@ __all__ = [
     "PengFiniteProjectedPotential",
     "PengParametrization",
     "PixelatedDetector",
+    "PlaneWave",
     "PlasmonEventSpec",
     "PlasmonScatteringEvents",
     "PoissonNoise",
@@ -503,6 +519,7 @@ __all__ = [
     "ScanDistortion",
     "SegmentedDetector",
     "TEMModel",
+    "TEMControlEntry",
     "TransitionPotential",
     "amplitude_projection",
     "array_row_intersection",
@@ -534,6 +551,7 @@ __all__ = [
     "energy2wavelength",
     "electron_configurations",
     "estimate_necessary_excitation_error",
+    "evaluate_ctf_from_coefficients",
     "excitation_errors",
     "excitations_weights",
     "fft2",

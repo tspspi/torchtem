@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Mapping
 
 import torch
 from torch import nn
@@ -410,3 +411,162 @@ class PlaneWave(nn.Module):
     def forward(self) -> torch.Tensor:
         amplitude = torch.as_tensor(self.amplitude, dtype=torch.complex128, device=self.device_hint)
         return torch.full(self.gpts, amplitude, dtype=torch.complex128, device=self.device_hint)
+
+
+def evaluate_ctf_from_coefficients(
+    alpha_rad: torch.Tensor,
+    phi_rad: torch.Tensor,
+    *,
+    wavelength: torch.Tensor,
+    coefficients: Mapping[str, torch.Tensor],
+    semiangle_cutoff_mrad: float,
+    soft_edge_mrad: float = 0.0,
+    focal_spread_A: float = 0.0,
+    angular_spread_mrad: float = 0.0,
+    flip_phase: bool = False,
+    wiener_snr: float = 0.0,
+    dtype: torch.dtype = torch.float64,
+) -> torch.Tensor:
+    """Evaluate a CTF from explicit coefficient tensors without mutating module parameters."""
+    alpha = torch.as_tensor(alpha_rad, dtype=dtype)
+    phi = torch.as_tensor(phi_rad, dtype=dtype, device=alpha.device)
+    wavelength = torch.as_tensor(wavelength, dtype=dtype, device=alpha.device)
+
+    coeff = {
+        name: torch.as_tensor(
+            coefficients.get(name, 0.0),
+            dtype=dtype,
+            device=alpha.device,
+        )
+        for name in AberrationCoefficients.__annotations__
+    }
+
+    phase = torch.zeros_like(alpha)
+    phase = phase + 0.5 * alpha.square() * (
+        coeff["C10"] + coeff["C12"] * torch.cos(2.0 * (phi - coeff["phi12"]))
+    )
+    phase = phase + (alpha**3 / 3.0) * (
+        coeff["C21"] * torch.cos(phi - coeff["phi21"])
+        + coeff["C23"] * torch.cos(3.0 * (phi - coeff["phi23"]))
+    )
+    phase = phase + (alpha**4 / 4.0) * (
+        coeff["C30"]
+        + coeff["C32"] * torch.cos(2.0 * (phi - coeff["phi32"]))
+        + coeff["C34"] * torch.cos(4.0 * (phi - coeff["phi34"]))
+    )
+    phase = phase + (alpha**5 / 5.0) * (
+        coeff["C41"] * torch.cos(phi - coeff["phi41"])
+        + coeff["C43"] * torch.cos(3.0 * (phi - coeff["phi43"]))
+        + coeff["C45"] * torch.cos(5.0 * (phi - coeff["phi45"]))
+    )
+    phase = phase + (alpha**6 / 6.0) * (
+        coeff["C50"]
+        + coeff["C52"] * torch.cos(2.0 * (phi - coeff["phi52"]))
+        + coeff["C54"] * torch.cos(4.0 * (phi - coeff["phi54"]))
+        + coeff["C56"] * torch.cos(6.0 * (phi - coeff["phi56"]))
+    )
+
+    transfer = torch.exp(
+        -1.0j * ((2.0 * torch.pi / wavelength) * phase).to(torch.complex128)
+    )
+
+    if angular_spread_mrad != 0.0:
+        angular_spread = torch.as_tensor(
+            angular_spread_mrad / 1e3, dtype=dtype, device=alpha.device
+        )
+        dchi_dk = (
+            2.0
+            * torch.pi
+            / wavelength
+            * (
+                (coeff["C12"] * torch.cos(2.0 * (phi - coeff["phi12"])) + coeff["C10"]) * alpha
+                + (
+                    coeff["C23"] * torch.cos(3.0 * (phi - coeff["phi23"]))
+                    + coeff["C21"] * torch.cos(phi - coeff["phi21"])
+                )
+                * alpha.square()
+                + (
+                    coeff["C34"] * torch.cos(4.0 * (phi - coeff["phi34"]))
+                    + coeff["C32"] * torch.cos(2.0 * (phi - coeff["phi32"]))
+                    + coeff["C30"]
+                )
+                * alpha.pow(3)
+                + (
+                    coeff["C45"] * torch.cos(5.0 * (phi - coeff["phi45"]))
+                    + coeff["C43"] * torch.cos(3.0 * (phi - coeff["phi43"]))
+                    + coeff["C41"] * torch.cos(phi - coeff["phi41"])
+                )
+                * alpha.pow(4)
+                + (
+                    coeff["C56"] * torch.cos(6.0 * (phi - coeff["phi56"]))
+                    + coeff["C54"] * torch.cos(4.0 * (phi - coeff["phi54"]))
+                    + coeff["C52"] * torch.cos(2.0 * (phi - coeff["phi52"]))
+                    + coeff["C50"]
+                )
+                * alpha.pow(5)
+            )
+        )
+        dchi_dphi = (
+            -2.0
+            * torch.pi
+            / wavelength
+            * (
+                coeff["C12"] * torch.sin(2.0 * (phi - coeff["phi12"])) * alpha
+                + (
+                    coeff["C23"] * torch.sin(3.0 * (phi - coeff["phi23"]))
+                    + coeff["C21"] / 3.0 * torch.sin(phi - coeff["phi21"])
+                )
+                * alpha.square()
+                + (
+                    coeff["C34"] * torch.sin(4.0 * (phi - coeff["phi34"]))
+                    + 0.5 * coeff["C32"] * torch.sin(2.0 * (phi - coeff["phi32"]))
+                )
+                * alpha.pow(3)
+                + (
+                    coeff["C45"] * torch.sin(5.0 * (phi - coeff["phi45"]))
+                    + 3.0 / 5.0 * coeff["C43"] * torch.sin(3.0 * (phi - coeff["phi43"]))
+                    + 1.0 / 5.0 * coeff["C41"] * torch.sin(phi - coeff["phi41"])
+                )
+                * alpha.pow(4)
+                + (
+                    coeff["C56"] * torch.sin(6.0 * (phi - coeff["phi56"]))
+                    + 2.0 / 3.0 * coeff["C54"] * torch.sin(4.0 * (phi - coeff["phi54"]))
+                    + 1.0 / 3.0 * coeff["C52"] * torch.sin(2.0 * (phi - coeff["phi52"]))
+                )
+                * alpha.pow(5)
+            )
+        )
+        transfer = transfer * torch.exp(
+            -torch.sign(angular_spread)
+            * (angular_spread / 2.0).square()
+            * (dchi_dk.square() + dchi_dphi.square())
+        ).to(torch.complex128)
+
+    if focal_spread_A != 0.0:
+        focal_spread = torch.as_tensor(
+            focal_spread_A, dtype=dtype, device=alpha.device
+        )
+        transfer = transfer * torch.exp(
+            -((0.5 * torch.pi / wavelength * focal_spread * alpha.square()) ** 2)
+        ).to(torch.complex128)
+
+    if semiangle_cutoff_mrad != float("inf"):
+        cutoff_rad = torch.as_tensor(
+            semiangle_cutoff_mrad / 1e3, dtype=dtype, device=alpha.device
+        )
+        if soft_edge_mrad <= 0.0:
+            aperture = (alpha <= cutoff_rad).to(torch.complex128)
+        else:
+            softness = torch.as_tensor(
+                soft_edge_mrad / 1e3, dtype=dtype, device=alpha.device
+            )
+            aperture = torch.sigmoid((cutoff_rad - alpha) / softness).to(torch.complex128)
+        transfer = transfer * aperture
+
+    if wiener_snr != 0.0:
+        snr = torch.as_tensor(wiener_snr, dtype=dtype, device=alpha.device)
+        transfer = ((1.0 + 1.0 / snr) * transfer.square()) / (transfer.square() + 1.0 / snr)
+    elif flip_phase:
+        transfer = transfer.real.to(torch.complex128) - 1.0j * transfer.imag.abs().to(torch.complex128)
+
+    return transfer
