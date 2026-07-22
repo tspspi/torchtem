@@ -20,7 +20,7 @@ At the moment what is covered:
 * The basis for some proofs has been defined in `proofs` but not everything has been proofen to be correct till now
 * Most algorithms have been implemented in torch tensors and validated against [abTEM](https://github.com/abTEM/abTEM)
 * Most of the typical models that have also been supported in [abTEM](https://github.com/abTEM/abTEM) have been implemented
-* The current Bloch branch is now validated against abTEM both for the low-level structure/scattering/dynamical operators and for the current experiment-level reciprocal-intensity diffraction image with separate structure-factor support and selected-beam sets
+* The current Bloch branch is now validated against abTEM both for the low-level structure/scattering/dynamical operators and for the current experiment-level reciprocal-intensity, reciprocal-wave, normalized annular-detector, flexible-annular, and segmented-detector outputs with separate structure-factor support and selected-beam sets
 
 ## Usage
 

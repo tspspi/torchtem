@@ -65,7 +65,7 @@ class AnnularDetector(nn.Module):
     def forward(self, wave: torch.Tensor) -> torch.Tensor:
         intensity = self.intensity(wave)
         mask = self.mask(wave)
-        return torch.sum(intensity * mask)
+        return torch.sum(intensity * mask, dim=(-2, -1))
 
 
 class FlexibleAnnularDetector(nn.Module):
@@ -178,6 +178,9 @@ class FlexibleAnnularDetector(nn.Module):
         return radial_bins[..., start:stop].sum(dim=-1)
 
     def forward(self, wave: torch.Tensor) -> torch.Tensor:
+        if wave.ndim > 2:
+            return torch.stack([self.forward(item) for item in wave], dim=0)
+
         intensity = self.intensity(wave)
         bins = self.radial_bin_map(wave)
         nbins = self.nbins_radial(wave)
@@ -378,6 +381,9 @@ class SegmentedDetector(nn.Module):
         return regions
 
     def forward(self, wave: torch.Tensor) -> torch.Tensor:
+        if wave.ndim > 2:
+            return torch.stack([self.forward(item) for item in wave], dim=0)
+
         intensity = self.intensity(wave)
         bins = self.bins(wave)
         out = torch.zeros(
