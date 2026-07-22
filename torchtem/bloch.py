@@ -174,7 +174,7 @@ class BlochWaveModel(nn.Module):
     def calculate_structure_matrix(self) -> torch.Tensor:
         return calculate_structure_matrix(
             self.structure_factor_model.structure_factors,
-            self.hkl,
+            self.structure_factor_model.hkl,
             self.hkl,
             self.cell,
             self.energy_eV,

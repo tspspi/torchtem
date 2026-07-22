@@ -180,6 +180,7 @@ class BlochConfig:
     cell: torch.Tensor
     structure_factors: torch.Tensor
     thickness_A: float
+    structure_factor_hkl: torch.Tensor | None = None
     use_wave_eq: bool = False
 
 
@@ -466,7 +467,7 @@ class BlochDiffractionPattern(nn.Module):
     ) -> None:
         super().__init__()
         structure_factor_model = StructureFactorModel(
-            config.hkl,
+            config.hkl if config.structure_factor_hkl is None else config.structure_factor_hkl,
             config.structure_factors,
             config.cell,
         )
