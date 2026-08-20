@@ -10,7 +10,9 @@ The main goal was to keep the whole implementation fully differentiable to allow
 * [CoQ proofs](#coq-proofs)
 * [Examples](#examples)
 
+<!--
 ![](https://raw.githubusercontent.com/tspspi/torchtem/refs/heads/master/_doc/titleimage.png)
+-->
 
 ## What is covered
 
