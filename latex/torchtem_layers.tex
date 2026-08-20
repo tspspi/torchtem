@@ -103,6 +103,51 @@ where $P$ is the aperture, $\chi$ is the aberration phase, $E_t$ is the temporal
 envelope, and $E_s$ is the spatial envelope.  In the implementation, $E_t$ and $E_s$
 are included only when the corresponding spread parameters are non-zero.
 
+\paragraph{Relation to physical lens and aperture fields.}
+The implemented CTF is a reduced effective optics model rather than a direct
+electromagnetic field solve inside the microscope column.  The intended bridge to
+hardware is
+\begin{align}
+  \bigl(\mathbf{E}(\mathbf{r}), \mathbf{B}(\mathbf{r}), \text{aperture geometry}\bigr)
+  \;\Longrightarrow\;
+  \text{optical path / eikonal phase}
+  \;\Longrightarrow\;
+  \chi(\mathbf{k}),\,P(\mathbf{k}).
+\end{align}
+At the Lorentz-force level, an electron ray or wave packet is driven by
+\begin{align}
+  \frac{d\mathbf{p}}{dt}
+  =
+  -e\left(
+    \mathbf{E} + \mathbf{v}\times\mathbf{B}
+  \right),
+\end{align}
+and, after the usual paraxial and reference-trajectory reduction, the accumulated
+optical-path phase may be written schematically as
+\begin{align}
+  \Phi(\boldsymbol{\rho})
+  \approx
+  \Phi_0
+  +
+  \sum_j a_j\,f_j(\boldsymbol{\rho}),
+\end{align}
+where $\boldsymbol{\rho}$ is a pupil-plane coordinate and the coefficients $a_j$ are
+low-order summaries of the underlying lens fields.  In reciprocal-space TEM notation,
+this reduced phase is then represented by the aberration function
+\begin{align}
+  \chi(\mathbf{k}) = \Phi\!\left(\boldsymbol{\rho}(\mathbf{k})\right) - \Phi_0,
+\end{align}
+which is finally expanded in the aberration basis used by the simulator.  A real
+aperture enters the same reduced model as the pupil support or amplitude mask
+\begin{align}
+  P(\mathbf{k}) \in [0,1],
+\end{align}
+with hard, soft, annular, segmented, or otherwise parameterized support depending on
+the experiment branch.  So, in the current TorchTEM implementation, the aberration
+coefficients and aperture masks should be interpreted as compressed observables of the
+physical lens and aperture fields, not as a first-principles field map of the full
+column.
+
 Let $\alpha = 10^3 \lambda |\mathbf{k}|$ be the scattering angle in mrad and $\varphi$
 the polar angle of $\mathbf{k}$.  The aberration phase polynomial is represented as
 \begin{align}
