@@ -968,4 +968,401 @@ For limits aligned with the radial bin boundaries, this matches the correspondin
 annular detector integral exactly up to floating-point arithmetic.
 
 
+\subsection{Fixed-stack HRTEM control-vector branch}
+TorchTEM also includes a fixed-topology HRTEM branch for inverse microscope tuning with
+a constant specimen.  Let
+\begin{align}
+  \mathbf{u}\in\mathbb{R}^{12}
+\end{align}
+denote the control vector
+\begin{align}
+  \mathbf{u} =
+  (&I_{c1}, I_{c2}, s_{c,x}, s_{c,y}, f_o, s_{o,x}, s_{o,y}, \gamma_{30},
+    \gamma_{32,x}, \gamma_{32,y}, \gamma_{34,x}, \gamma_{34,y}),
+\end{align}
+where the entries represent two condenser excitations, condenser stigmator components,
+objective focus, objective stigmator components, and simple corrector controls.
+For batched inference or optimization, the implementation also accepts a tensor
+\begin{align}
+  U \in \mathbb{R}^{B_1\times\cdots\times B_m\times 12},
+\end{align}
+which is interpreted as a batch of control vectors with arbitrary leading batch shape.
+The current fixed-stack surface also groups these entries into stage blocks
+\begin{align}
+  \mathbf{u}
+  =
+  \left(
+    \mathbf{u}_{\mathrm{cond}},
+    \mathbf{u}_{\mathrm{obj}},
+    \mathbf{u}_{\mathrm{corr}}
+  \right),
+\end{align}
+with
+\begin{align}
+  \mathbf{u}_{\mathrm{cond}} &\in \mathbb{R}^{4}, \\
+  \mathbf{u}_{\mathrm{obj}} &\in \mathbb{R}^{3}, \\
+  \mathbf{u}_{\mathrm{corr}} &\in \mathbb{R}^{5},
+\end{align}
+corresponding respectively to the condenser, objective, and corrector stage vectors.
+In the implementation these stage blocks may be extracted or replaced independently
+before running the full differentiable HRTEM forward model.
+For inverse fitting, the current stack also supports an active subspace
+\begin{align}
+  \mathbf{u}_{\mathcal{A}} \in \mathbb{R}^{|\mathcal{A}|},
+\end{align}
+which replaces only a selected subset of control entries while the remaining entries
+stay fixed at a baseline microscope state.  When bounds
+\(
+  \ell_i < u_i < h_i
+\)
+are supplied for an active coordinate, the trainable latent parameter
+\(
+  z_i \in \mathbb{R}
+\)
+is mapped to the physical control value by
+\begin{align}
+  u_i = \ell_i + (h_i - \ell_i)\,\sigma(z_i),
+\end{align}
+with \(\sigma\) the logistic sigmoid.  Unbounded active coordinates are represented
+directly.  This keeps the differentiable fitting path inside a chosen physically
+plausible parameter window without changing the fixed-stack forward model itself.
+
+The current demo implementation decodes this vector into source-side and image-side
+aberration coefficients through an explicit affine calibration map.  For the source
+branch, the most important terms are
+\begin{align}
+  C_{10}^{(\mathrm{src})} &= -65 I_{c1} - 28 I_{c2}, \\
+  a_{12,x}^{(\mathrm{src})} &= 24 s_{c,x} + 7 s_{c,y}, \\
+  a_{12,y}^{(\mathrm{src})} &= 7 s_{c,x} - 24 s_{c,y}, \\
+  C_{12}^{(\mathrm{src})} &=
+  \sqrt{ \left(a_{12,x}^{(\mathrm{src})}\right)^2
+       + \left(a_{12,y}^{(\mathrm{src})}\right)^2 }, \\
+  \phi_{12}^{(\mathrm{src})} &=
+  \tfrac{1}{2}\operatorname{atan2}
+  \left(a_{12,y}^{(\mathrm{src})}, a_{12,x}^{(\mathrm{src})}\right), \\
+  C_{21}^{(\mathrm{src})} &= 14\,(I_{c1}-I_{c2}).
+\end{align}
+For the image-forming branch, the current demo map uses
+\begin{align}
+  C_{10}^{(\mathrm{img})} &= 110 f_o + 6 (I_{c1}-I_{c2}), \\
+  a_{12,x}^{(\mathrm{img})} &= 18 s_{o,x} - 900 \gamma_{32,x}, \\
+  a_{12,y}^{(\mathrm{img})} &= 18 s_{o,y} - 900 \gamma_{32,y}, \\
+  C_{12}^{(\mathrm{img})} &=
+  \sqrt{ \left(a_{12,x}^{(\mathrm{img})}\right)^2
+       + \left(a_{12,y}^{(\mathrm{img})}\right)^2 }, \\
+  \phi_{12}^{(\mathrm{img})} &=
+  \tfrac{1}{2}\operatorname{atan2}
+  \left(a_{12,y}^{(\mathrm{img})}, a_{12,x}^{(\mathrm{img})}\right), \\
+  C_{30}^{(\mathrm{img})} &= 1.2\times 10^4 - 8.5\times 10^3 \gamma_{30}, \\
+  a_{32,x}^{(\mathrm{img})} &= -2200 \gamma_{32,x}, \\
+  a_{32,y}^{(\mathrm{img})} &= -2200 \gamma_{32,y}, \\
+  C_{32}^{(\mathrm{img})} &=
+  \sqrt{ \left(a_{32,x}^{(\mathrm{img})}\right)^2
+       + \left(a_{32,y}^{(\mathrm{img})}\right)^2 }, \\
+  \phi_{32}^{(\mathrm{img})} &=
+  \tfrac{1}{2}\operatorname{atan2}
+  \left(a_{32,y}^{(\mathrm{img})}, a_{32,x}^{(\mathrm{img})}\right), \\
+  a_{34,x}^{(\mathrm{img})} &= -1400 \gamma_{34,x}, \\
+  a_{34,y}^{(\mathrm{img})} &= -1400 \gamma_{34,y}, \\
+  C_{34}^{(\mathrm{img})} &=
+  \sqrt{ \left(a_{34,x}^{(\mathrm{img})}\right)^2
+       + \left(a_{34,y}^{(\mathrm{img})}\right)^2 }, \\
+  \phi_{34}^{(\mathrm{img})} &=
+  \tfrac{1}{4}\operatorname{atan2}
+  \left(a_{34,y}^{(\mathrm{img})}, a_{34,x}^{(\mathrm{img})}\right).
+\end{align}
+All higher coefficients not listed above are currently set to zero in this fixed-stack
+demo surface.
+
+The source wave is then generated from the decoded source coefficients by evaluating the
+source transfer function
+\begin{align}
+  H_{\mathrm{src}}(\mathbf{k};\mathbf{u}),
+\end{align}
+normalizing it in reciprocal space,
+\begin{align}
+  \widehat{\psi}_{\mathrm{src}}(\mathbf{k};\mathbf{u})
+  =
+  \frac{H_{\mathrm{src}}(\mathbf{k};\mathbf{u})}
+       {\left\lVert H_{\mathrm{src}}(\cdot;\mathbf{u}) \right\rVert_2},
+\end{align}
+and applying the inverse Fourier transform,
+\begin{align}
+  \psi_{\mathrm{src}}(\mathbf{r};\mathbf{u})
+  = \mathcal{F}^{-1}\!\left\{
+      \widehat{\psi}_{\mathrm{src}}(\mathbf{k};\mathbf{u})
+    \right\}.
+\end{align}
+The current implementation then shifts this illumination to the center of the real-space
+grid before propagation through the specimen.
+For the validated fixed-stack example, the source semiangle cutoff is now chosen large
+enough that the source aperture spans multiple reciprocal pixels on the simulation
+grid.  In the current example this means a `5.0 mrad` source aperture rather than the
+earlier effectively single-pixel regime, so condenser-side controls now produce a
+nontrivial pre-specimen wave and a genuinely source-sensitive exit-wave objective.
+
+For a fixed specimen potential stack $\{V_n\}_{n=1}^{N_s}$, the exit wave is
+\begin{align}
+  \psi_{\mathrm{exit}}(\mathbf{r};\mathbf{u})
+  =
+  \mathcal{M}_{\Theta_{\mathrm{ms}},\Theta_{\mathrm{pot}}}
+  \bigl[\psi_{\mathrm{src}}(\mathbf{r};\mathbf{u})\bigr].
+\end{align}
+The image-plane wave and image intensity are then formed with the decoded image-side CTF,
+\begin{align}
+  \psi_{\mathrm{img}}(\mathbf{r};\mathbf{u})
+  &=
+  \mathcal{F}^{-1}\!\left\{
+    H_{\mathrm{img}}(\mathbf{k};\mathbf{u})\,
+    \mathcal{F}\{\psi_{\mathrm{exit}}(\mathbf{r};\mathbf{u})\}
+  \right\}, \\
+  I_{\mathrm{img}}(\mathbf{r};\mathbf{u})
+  &= \left|\psi_{\mathrm{img}}(\mathbf{r};\mathbf{u})\right|^2,
+\end{align}
+and the momentum-plane detector output is
+\begin{align}
+  I_{\mathrm{diff}}(\mathbf{k};\mathbf{u})
+  = \left|\mathcal{F}\{\psi_{\mathrm{exit}}(\mathbf{r};\mathbf{u})\}\right|^2.
+\end{align}
+The branch therefore emits the tuple
+\begin{align}
+  y(\mathbf{u}) =
+  \left(
+    \psi_{\mathrm{src}}(\mathbf{u}),
+    I_{\mathrm{img}}(\mathbf{u}),
+    I_{\mathrm{diff}}(\mathbf{u}),
+    \psi_{\mathrm{exit}}(\mathbf{u})
+  \right),
+\end{align}
+so the pre-specimen source wave, reduced detector data, and the full complex exit wave
+remain available to downstream optimization pipelines.
+For a batched input tensor $U$, the implementation applies the same forward model to
+each control slice independently and preserves the leading batch shape:
+\begin{align}
+  y(U)
+  \in
+  \mathbb{C}^{B_1\times\cdots\times B_m\times N_y\times N_x}
+\end{align}
+for the complex exit-wave branch, with the corresponding real-valued detector outputs
+carrying the same leading batch dimensions.
+
+For the current fitting example, the primary optimization target is image contrast
+rather than raw intensity:
+\begin{align}
+  I_{\mathrm{contrast}}(\mathbf{r};\mathbf{u})
+  =
+  \frac{I_{\mathrm{img}}(\mathbf{r};\mathbf{u})}
+       {\overline{I_{\mathrm{img}}^{\star}(\cdot)}}
+  - 1,
+\end{align}
+and the same branch also supports a normalized diffraction metric
+\begin{align}
+  D_{\mathrm{norm}}(\mathbf{k};\mathbf{u})
+  =
+  \frac{D(\mathbf{k};\mathbf{u})}
+       {\sum_{\mathbf{k}'} D(\mathbf{k}';\mathbf{u})}.
+\end{align}
+With diffraction weight \(\lambda_D \ge 0\), the demo loss becomes
+\begin{align}
+  \mathcal{L}(\mathbf{u})
+  =
+  \frac{1}{N_I}
+  \sum_{\mathbf{r}}
+  \left(
+    I_{\mathrm{contrast}}(\mathbf{r};\mathbf{u})
+    -
+    I_{\mathrm{contrast}}^{\star}(\mathbf{r})
+  \right)^2
+  +
+  \lambda_D
+  \frac{1}{N_D}
+  \sum_{\mathbf{k}}
+  \left(
+    D_{\mathrm{norm}}(\mathbf{k};\mathbf{u})
+    -
+    D_{\mathrm{norm}}^{\star}(\mathbf{k})
+  \right)^2.
+\end{align}
+This should be interpreted as a differentiable inverse-tuning demonstration, not as a
+claim of unique parameter recovery for the current overparameterized control map.
+For controls that mainly act in the image-forming branch after the specimen exit wave,
+the diffraction contribution can remain nearly constant.  Reciprocal-space fitting is
+more informative when the optimized control subset includes source-side parameters that
+change the exit-wave illumination itself.  The current validated HRTEM fitting example
+therefore screens a mixed source/image plane \((I_{c1}, f_o)\) rather than a purely
+post-specimen image-side control plane, while the currently informative live-validated
+exit-wave scoring plane is the source-side pair \((I_{c1}, I_{c2})\).
+Using the target-image mean as the shared contrast reference also makes the score
+surface less sensitive to tiny mean-level numerical differences between otherwise
+matching low-contrast images.
+
+For coarse candidate screening before gradient refinement, the same branch now also
+supports batched candidate scoring.  Given a candidate tensor
+\begin{align}
+  U \in \mathbb{R}^{B\times 12}
+\end{align}
+and a target image $I^\star(\mathbf{r})$, the simulator evaluates all candidates and
+forms the batched image metric
+\begin{align}
+  M_b(\mathbf{r}) &=
+  \begin{cases}
+    I_{\mathrm{contrast}}(\mathbf{r}; U_b), & \text{if contrast scoring is enabled}, \\
+    I_{\mathrm{img}}(\mathbf{r}; U_b), & \text{otherwise},
+  \end{cases}
+\end{align}
+with corresponding target metric
+\begin{align}
+  M^\star(\mathbf{r}) &=
+  \begin{cases}
+    I_{\mathrm{contrast}}^\star(\mathbf{r}), & \text{if contrast scoring is enabled}, \\
+    I^\star(\mathbf{r}), & \text{otherwise}.
+  \end{cases}
+\end{align}
+with the target contrast defined using the same reference mean
+\(
+  \overline{I_{\mathrm{img}}^{\star}(\cdot)}
+\)
+for both the target and all candidate predictions.
+If the inverse target also includes the full complex exit wave
+\(
+  \psi^\star_{\mathrm{exit}}(\mathbf{r})
+\),
+the simulator can first apply a global phase alignment
+\begin{align}
+  \widehat{\psi}_{b,\mathrm{exit}}(\mathbf{r})
+  &=
+  \exp\!\left(
+    -i \arg \sum_{\mathbf{r}'}
+    \overline{\psi^\star_{\mathrm{exit}}(\mathbf{r}')}
+    \psi_{b,\mathrm{exit}}(\mathbf{r}')
+  \right)
+  \psi_{b,\mathrm{exit}}(\mathbf{r}),
+\end{align}
+and then form the exit-wave residual
+\begin{align}
+  L_{\psi,b}
+  =
+  \frac{1}{N_\psi}
+  \sum_{\mathbf{r}}
+  \left|
+    \widehat{\psi}_{b,\mathrm{exit}}(\mathbf{r})
+    -
+    \psi^\star_{\mathrm{exit}}(\mathbf{r})
+  \right|^2.
+\end{align}
+If the inverse target instead or additionally includes the pre-specimen source wave
+\(
+  \psi^\star_{\mathrm{src}}(\mathbf{r})
+\),
+the simulator can apply the same global phase-alignment convention
+\begin{align}
+  \widehat{\psi}_{b,\mathrm{src}}(\mathbf{r})
+  &=
+  \exp\!\left(
+    -i \arg \sum_{\mathbf{r}'}
+    \overline{\psi^\star_{\mathrm{src}}(\mathbf{r}')}
+    \psi_{b,\mathrm{src}}(\mathbf{r}')
+  \right)
+  \psi_{b,\mathrm{src}}(\mathbf{r}),
+\end{align}
+and then form the source-wave residual
+\begin{align}
+  L_{\mathrm{src},b}
+  =
+  \frac{1}{N_\psi}
+  \sum_{\mathbf{r}}
+  \left|
+    \widehat{\psi}_{b,\mathrm{src}}(\mathbf{r})
+    -
+    \psi^\star_{\mathrm{src}}(\mathbf{r})
+  \right|^2.
+\end{align}
+The candidate score is then the per-candidate mean squared residual, optionally with
+the same diffraction term, the exit-wave term, and the source-wave term,
+\begin{align}
+  s_b
+  =
+  \frac{1}{N_I}\sum_{\mathbf{r}} \left(M_b(\mathbf{r}) - M^\star(\mathbf{r})\right)^2
+  +
+  \lambda_D
+  \frac{1}{N_D}
+  \sum_{\mathbf{k}}
+  \left(
+    \widetilde{D}_b(\mathbf{k}) - \widetilde{D}^{\star}(\mathbf{k})
+  \right)^2.
+  +
+  \lambda_\psi L_{\psi,b}
+  +
+  \lambda_{\mathrm{src}} L_{\mathrm{src},b}.
+\end{align}
+Here \(\widetilde{D}\) denotes either the raw diffraction intensity or the normalized
+diffraction metric depending on the selected scoring mode.
+This provides a differentiable screening stage that can rank many microscope-state
+proposals against one fixed target image before or alongside subsequent local
+optimization.
+For local refinement after coarse screening, the simulator also exposes an iterative
+optimizer surface that repeatedly evaluates the fixed-stack forward model, computes the
+same image, diffraction, and optional wavefield losses, and updates the active control
+parameters with a Torch optimizer.  The returned result object records the
+loss history together with the initial outputs, final outputs, final control vector,
+and the per-step exit-wave and source-wave loss histories when those terms are enabled,
+so the inverse-tuning path is available as a reusable differentiable API rather than
+only as example-script logic.
+Above that, the simulator also exposes a coarse-to-fine orchestration surface for
+Cartesian named-parameter grids: it screens the candidate grid, selects the best
+screened control vector, instantiates a fresh fixed-stack simulator at that screened
+state, and then runs the same differentiable local refinement on top of it.  This
+promotes the whole grid-screening plus bounded-refinement workflow to a reusable layer
+instead of leaving the orchestration inside one example script.
+Because the implementation now also accepts named stage blocks directly, the same
+candidate screening may be viewed as acting on a stage-parameter family
+\begin{align}
+  U_{\mathrm{stage}} =
+  \left(
+    U_{\mathrm{cond}},
+    U_{\mathrm{obj}},
+    U_{\mathrm{corr}}
+  \right),
+\end{align}
+which is first assembled into the full candidate tensor $U$ and then scored by the
+same formula for $s_b$.  In other words, stage-wise candidate screening is not a
+different physical model; it is a different parameterization of the same fixed-stack
+HRTEM forward map.
+The simulator additionally exposes the corresponding best-candidate selector
+\begin{align}
+  b^\star = \operatorname*{arg\,min}_{b} s_b,
+\end{align}
+and returns both the index $b^\star$ and the associated control vector
+\begin{align}
+  \mathbf{u}^\star = U_{b^\star},
+\end{align}
+together with the image, diffraction, and exit-wave outputs for that best-scoring
+candidate.  This yields a direct coarse-to-fine workflow: screen a batched family of
+microscope-state proposals, extract $\mathbf{u}^\star$, and continue refinement from
+that candidate by gradient-based optimization if needed.
+For workflows that keep several promising candidates, the same score tensor may be
+ranked by
+\begin{align}
+  b_1^\star, \dots, b_k^\star
+  = \operatorname*{arg\,topk\,min}_{b} s_b,
+\end{align}
+with associated vectors
+\begin{align}
+  \mathbf{u}_{(1)}^\star, \dots, \mathbf{u}_{(k)}^\star,
+\end{align}
+returned in ascending score order.  This allows downstream optimization to branch from
+the best few microscope-state proposals instead of only the single global minimum over
+the screened batch.
+When the candidates come from a Cartesian parameter scan such as
+\begin{align}
+  I_{c1} \in \{I_{c1}^{(1)}, \dots, I_{c1}^{(M)}\},
+  \qquad
+  f_o \in \{f_o^{(1)}, \dots, f_o^{(N)}\},
+\end{align}
+the implementation first builds the corresponding parameter grid tensor and then applies
+the same score map $s_b$, best-candidate selector $b^\star$, and top-$k$ ranking
+operators.  In other words, grid screening is the same coarse-search primitive as the
+arbitrary batched candidate case, but with a structured Cartesian parameterization of
+the proposal family.
+
 \end{document}
