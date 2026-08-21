@@ -7,10 +7,23 @@ import torch
 from torch import nn
 
 
+def _validate_num_slices(num_slices: int) -> int:
+    value = int(num_slices)
+    if value < 1:
+        raise ValueError("num_slices must be at least 1")
+    return value
+
+
 def apply_detector_recursive(detector: nn.Module, waves: torch.Tensor) -> torch.Tensor:
+    if waves.ndim < 2:
+        raise ValueError("waves must have at least 2 dimensions")
     if waves.ndim == 2:
         return detector(waves)
-    return torch.stack([apply_detector_recursive(detector, waves[i]) for i in range(waves.shape[0])], dim=0)
+
+    outputs = []
+    for index in range(waves.shape[0]):
+        outputs.append(apply_detector_recursive(detector, waves[index]))
+    return torch.stack(outputs, dim = 0)
 
 
 class PotentialSliceInteraction(nn.Module):
@@ -26,7 +39,7 @@ class PotentialSliceInteraction(nn.Module):
         super().__init__()
         self.multislice = multislice
         self.potential = potential
-        self.num_slices = int(num_slices)
+        self.num_slices = _validate_num_slices(num_slices)
 
     def potential_slices(self) -> torch.Tensor:
         potential = self.potential()
@@ -63,15 +76,26 @@ class LayerStack(nn.Module):
         self.layers = nn.ModuleDict(OrderedDict(layers or []))
 
     def append(self, name: str, layer: nn.Module) -> None:
+        if not name:
+            raise ValueError("layer name must not be empty")
         self.layers[name] = layer
 
     def parameter_tensor_dict(self) -> dict[str, torch.Tensor]:
-        return {name: param for name, param in self.named_parameters()}
+        parameters: dict[str, torch.Tensor] = {}
+        for name, param in self.named_parameters():
+            parameters[name] = param
+        return parameters
 
     def set_parameter(self, name: str, value: torch.Tensor | float | complex) -> None:
         module_name, _, param_name = name.rpartition(".")
         target = self.get_submodule(module_name) if module_name else self
+        if not hasattr(target, param_name):
+            raise AttributeError(f"unknown parameter '{name}'")
+
         parameter = getattr(target, param_name)
+        if not isinstance(parameter, torch.Tensor):
+            raise TypeError(f"attribute '{name}' is not a tensor parameter")
+
         with torch.no_grad():
             parameter.copy_(torch.as_tensor(value, device=parameter.device, dtype=parameter.dtype))
 
@@ -111,6 +135,11 @@ class ScanLayer(nn.Module):
 
     def forward(self, wave: torch.Tensor) -> torch.Tensor:
         positions = self.scan()
+        if positions.ndim != 2:
+            raise ValueError("scan positions must have shape (count, 2)")
+        if positions.shape[1] != 2:
+            raise ValueError("scan positions must contain x/y offsets in Angstrom")
+
         shifted = self.shift_wave(wave, positions, self.sampling)
         if shifted.ndim == wave.ndim:
             return shifted.unsqueeze(0)

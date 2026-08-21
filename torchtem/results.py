@@ -11,10 +11,21 @@ from torchtem.plotting import plot_detector_outputs, plot_series_outputs
 
 def _to_cpu_value(value: Any) -> Any:
     if isinstance(value, Mapping):
-        return {name: _to_cpu_value(item) for name, item in value.items()}
+        cpu_mapping = {}
+        for name, item in value.items():
+            cpu_mapping[name] = _to_cpu_value(item)
+        return cpu_mapping
     if torch.is_tensor(value):
         return value.detach().cpu()
     return value
+
+
+def _default_detector_name(detector_names: tuple[str, ...] | None) -> str:
+    if detector_names is None:
+        return "detector"
+    if len(detector_names) == 0:
+        raise ValueError("detector_names must not be empty when provided")
+    return detector_names[0]
 
 
 @dataclass
@@ -43,13 +54,16 @@ class SimulationResult:
     def named_outputs(self) -> Mapping[str, torch.Tensor]:
         if isinstance(self.outputs, Mapping):
             return self.outputs
-        name = self.detector_names[0] if self.detector_names else "detector"
+        name = _default_detector_name(self.detector_names)
         return {name: self.outputs}
 
     def output_shapes(self) -> dict[str, tuple[int, ...]]:
         if isinstance(self.outputs, Mapping):
-            return {name: tuple(value.shape) for name, value in self.outputs.items()}
-        name = self.detector_names[0] if self.detector_names else "detector"
+            shapes = {}
+            for name, value in self.outputs.items():
+                shapes[name] = tuple(value.shape)
+            return shapes
+        name = _default_detector_name(self.detector_names)
         return {name: tuple(self.outputs.shape)}
 
     def plot(
@@ -90,13 +104,16 @@ class SimulationSeriesResult:
     def named_outputs(self) -> Mapping[str, torch.Tensor]:
         if isinstance(self.outputs, Mapping):
             return self.outputs
-        name = self.detector_names[0] if self.detector_names else "detector"
+        name = _default_detector_name(self.detector_names)
         return {name: self.outputs}
 
     def output_shapes(self) -> dict[str, tuple[int, ...]]:
         if isinstance(self.outputs, Mapping):
-            return {name: tuple(value.shape) for name, value in self.outputs.items()}
-        name = self.detector_names[0] if self.detector_names else "detector"
+            shapes = {}
+            for name, value in self.outputs.items():
+                shapes[name] = tuple(value.shape)
+            return shapes
+        name = _default_detector_name(self.detector_names)
         return {name: tuple(self.outputs.shape)}
 
     def at(self, index: int) -> SimulationResult:
