@@ -206,6 +206,26 @@ Proof.
     apply IH.
 Qed.
 
+Lemma sum_list_app :
+  forall xs ys,
+    sum_list (xs ++ ys) = sum_list xs + sum_list ys.
+Proof.
+  intros xs ys.
+  induction xs as [|x rest IH].
+  - simpl. lra.
+  - simpl. rewrite IH. lra.
+Qed.
+
+Lemma sum_list_app_singleton :
+  forall xs d,
+    sum_list (xs ++ [d]) = sum_list xs + d.
+Proof.
+  intros xs d.
+  rewrite sum_list_app.
+  simpl.
+  lra.
+Qed.
+
 Lemma slice_limits_from_app :
   forall start xs ys,
     slice_limits_from start (xs ++ ys) =
@@ -256,6 +276,49 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma slice_limits_from_app_singleton_contains_last :
+  forall start xs d,
+    In (final_edge_from start xs, final_edge_from start xs + d)
+       (slice_limits_from start (xs ++ [d])).
+Proof.
+  intros start xs d.
+  rewrite slice_limits_from_app_singleton.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma slice_limits_from_app_singleton_uses_final_edge :
+  forall start xs d,
+    slice_limits_from start (xs ++ [d]) =
+    slice_limits_from start xs ++
+    [(final_edge_from start xs, final_edge_from start (xs ++ [d]))].
+Proof.
+  intros start xs d.
+  rewrite slice_limits_from_app_singleton.
+  rewrite final_edge_from_preserves_total.
+  rewrite final_edge_from_preserves_total.
+  rewrite sum_list_app_singleton.
+  replace (start + (sum_list xs + d)) with (start + sum_list xs + d) by lra.
+  reflexivity.
+Qed.
+
+Lemma slice_limits_from_app_singleton_contains_last_by_final_edge :
+  forall start xs d,
+    In (final_edge_from start xs, final_edge_from start (xs ++ [d]))
+       (slice_limits_from start (xs ++ [d])).
+Proof.
+  intros start xs d.
+  rewrite slice_limits_from_app_singleton_uses_final_edge.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
 Lemma slice_limits_model_app_singleton :
   forall xs d,
     slice_limits_model (xs ++ [d]) =
@@ -266,6 +329,67 @@ Proof.
   rewrite slice_limits_model_app.
   rewrite final_edge_from_zero.
   simpl.
+  reflexivity.
+Qed.
+
+Lemma final_edge_from_app_singleton :
+  forall start xs d,
+    final_edge_from start (xs ++ [d]) =
+    final_edge_from start xs + d.
+Proof.
+  intros start xs d.
+  rewrite final_edge_from_app.
+  simpl.
+  lra.
+Qed.
+
+Lemma slice_limits_model_app_singleton_contains_last :
+  forall xs d,
+    In (sum_list xs, sum_list xs + d) (slice_limits_model (xs ++ [d])).
+Proof.
+  intros xs d.
+  rewrite slice_limits_model_app_singleton.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma slice_limits_model_app_singleton_last_ends_at_total :
+  forall xs d,
+    In (sum_list xs, sum_list (xs ++ [d])) (slice_limits_model (xs ++ [d])).
+Proof.
+  intros xs d.
+  rewrite sum_list_app_singleton.
+  apply slice_limits_model_app_singleton_contains_last.
+Qed.
+
+Lemma slice_limits_model_app_singleton_uses_final_edge :
+  forall xs d,
+    slice_limits_model (xs ++ [d]) =
+    slice_limits_model xs ++
+    [(final_edge_from 0 xs, final_edge_from 0 (xs ++ [d]))].
+Proof.
+  intros xs d.
+  rewrite slice_limits_model_app_singleton.
+  rewrite final_edge_from_zero.
+  rewrite final_edge_from_app_singleton.
+  rewrite final_edge_from_zero.
+  reflexivity.
+Qed.
+
+Lemma slice_limits_model_app_singleton_contains_last_by_final_edge :
+  forall xs d,
+    In (final_edge_from 0 xs, final_edge_from 0 (xs ++ [d]))
+       (slice_limits_model (xs ++ [d])).
+Proof.
+  intros xs d.
+  rewrite slice_limits_model_app_singleton_uses_final_edge.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
   reflexivity.
 Qed.
 
@@ -405,6 +529,212 @@ Proof.
   intros xs d.
   rewrite slice_limits_model_app_singleton.
   rewrite render_slices_app.
+  reflexivity.
+Qed.
+
+Lemma render_slices_slice_limits_model_infinite_app_singleton_ends_at_total :
+  forall xs d,
+    render_slices InfiniteProjection (slice_limits_model (xs ++ [d])) =
+    render_slices InfiniteProjection (slice_limits_model xs) ++
+    [render_infinite_slice (sum_list xs) (sum_list (xs ++ [d]))].
+Proof.
+  intros xs d.
+  rewrite sum_list_app_singleton.
+  apply render_slices_slice_limits_model_infinite_app_singleton.
+Qed.
+
+Lemma render_slices_slice_limits_model_finite_app_singleton_ends_at_total :
+  forall xs d,
+    render_slices FiniteProjection (slice_limits_model (xs ++ [d])) =
+    render_slices FiniteProjection (slice_limits_model xs) ++
+    [render_finite_slice (sum_list xs) (sum_list (xs ++ [d]))].
+Proof.
+  intros xs d.
+  rewrite sum_list_app_singleton.
+  apply render_slices_slice_limits_model_finite_app_singleton.
+Qed.
+
+Lemma render_slices_slice_limits_model_infinite_app_singleton_uses_final_edge :
+  forall xs d,
+    render_slices InfiniteProjection (slice_limits_model (xs ++ [d])) =
+    render_slices InfiniteProjection (slice_limits_model xs) ++
+    [render_infinite_slice (final_edge_from 0 xs) (final_edge_from 0 (xs ++ [d]))].
+Proof.
+  intros xs d.
+  rewrite final_edge_from_zero.
+  rewrite final_edge_from_zero.
+  apply render_slices_slice_limits_model_infinite_app_singleton_ends_at_total.
+Qed.
+
+Lemma render_slices_slice_limits_model_finite_app_singleton_uses_final_edge :
+  forall xs d,
+    render_slices FiniteProjection (slice_limits_model (xs ++ [d])) =
+    render_slices FiniteProjection (slice_limits_model xs) ++
+    [render_finite_slice (final_edge_from 0 xs) (final_edge_from 0 (xs ++ [d]))].
+Proof.
+  intros xs d.
+  rewrite final_edge_from_zero.
+  rewrite final_edge_from_zero.
+  apply render_slices_slice_limits_model_finite_app_singleton_ends_at_total.
+Qed.
+
+Lemma render_slices_slice_limits_model_infinite_app_singleton_contains_last :
+  forall xs d,
+    In (render_infinite_slice (sum_list xs) (sum_list (xs ++ [d])))
+       (render_slices InfiniteProjection (slice_limits_model (xs ++ [d]))).
+Proof.
+  intros xs d.
+  rewrite render_slices_slice_limits_model_infinite_app_singleton_ends_at_total.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_slice_limits_model_finite_app_singleton_contains_last :
+  forall xs d,
+    In (render_finite_slice (sum_list xs) (sum_list (xs ++ [d])))
+       (render_slices FiniteProjection (slice_limits_model (xs ++ [d]))).
+Proof.
+  intros xs d.
+  rewrite render_slices_slice_limits_model_finite_app_singleton_ends_at_total.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_slice_limits_model_infinite_app_singleton_contains_last_by_final_edge :
+  forall xs d,
+    In (render_infinite_slice (final_edge_from 0 xs) (final_edge_from 0 (xs ++ [d])))
+       (render_slices InfiniteProjection (slice_limits_model (xs ++ [d]))).
+Proof.
+  intros xs d.
+  rewrite render_slices_slice_limits_model_infinite_app_singleton_uses_final_edge.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_slice_limits_model_finite_app_singleton_contains_last_by_final_edge :
+  forall xs d,
+    In (render_finite_slice (final_edge_from 0 xs) (final_edge_from 0 (xs ++ [d])))
+       (render_slices FiniteProjection (slice_limits_model (xs ++ [d]))).
+Proof.
+  intros xs d.
+  rewrite render_slices_slice_limits_model_finite_app_singleton_uses_final_edge.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_infinite_slice_limits_from_app_singleton :
+  forall start xs d,
+    render_slices InfiniteProjection (slice_limits_from start (xs ++ [d])) =
+    render_slices InfiniteProjection (slice_limits_from start xs) ++
+    [render_infinite_slice (final_edge_from start xs) (final_edge_from start xs + d)].
+Proof.
+  intros start xs d.
+  rewrite slice_limits_from_app_singleton.
+  rewrite render_slices_app.
+  reflexivity.
+Qed.
+
+Lemma render_slices_finite_slice_limits_from_app_singleton :
+  forall start xs d,
+    render_slices FiniteProjection (slice_limits_from start (xs ++ [d])) =
+    render_slices FiniteProjection (slice_limits_from start xs) ++
+    [render_finite_slice (final_edge_from start xs) (final_edge_from start xs + d)].
+Proof.
+  intros start xs d.
+  rewrite slice_limits_from_app_singleton.
+  rewrite render_slices_app.
+  reflexivity.
+Qed.
+
+Lemma render_slices_infinite_slice_limits_from_app_singleton_uses_final_edge :
+  forall start xs d,
+    render_slices InfiniteProjection (slice_limits_from start (xs ++ [d])) =
+    render_slices InfiniteProjection (slice_limits_from start xs) ++
+    [render_infinite_slice (final_edge_from start xs) (final_edge_from start (xs ++ [d]))].
+Proof.
+  intros start xs d.
+  rewrite render_slices_infinite_slice_limits_from_app_singleton.
+  rewrite final_edge_from_app_singleton.
+  reflexivity.
+Qed.
+
+Lemma render_slices_finite_slice_limits_from_app_singleton_uses_final_edge :
+  forall start xs d,
+    render_slices FiniteProjection (slice_limits_from start (xs ++ [d])) =
+    render_slices FiniteProjection (slice_limits_from start xs) ++
+    [render_finite_slice (final_edge_from start xs) (final_edge_from start (xs ++ [d]))].
+Proof.
+  intros start xs d.
+  rewrite render_slices_finite_slice_limits_from_app_singleton.
+  rewrite final_edge_from_app_singleton.
+  reflexivity.
+Qed.
+
+Lemma render_slices_infinite_slice_limits_from_app_singleton_contains_last :
+  forall start xs d,
+    In (render_infinite_slice (final_edge_from start xs) (final_edge_from start xs + d))
+       (render_slices InfiniteProjection (slice_limits_from start (xs ++ [d]))).
+Proof.
+  intros start xs d.
+  rewrite render_slices_infinite_slice_limits_from_app_singleton.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_finite_slice_limits_from_app_singleton_contains_last :
+  forall start xs d,
+    In (render_finite_slice (final_edge_from start xs) (final_edge_from start xs + d))
+       (render_slices FiniteProjection (slice_limits_from start (xs ++ [d]))).
+Proof.
+  intros start xs d.
+  rewrite render_slices_finite_slice_limits_from_app_singleton.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_infinite_slice_limits_from_app_singleton_contains_last_by_final_edge :
+  forall start xs d,
+    In (render_infinite_slice (final_edge_from start xs) (final_edge_from start (xs ++ [d])))
+       (render_slices InfiniteProjection (slice_limits_from start (xs ++ [d]))).
+Proof.
+  intros start xs d.
+  rewrite render_slices_infinite_slice_limits_from_app_singleton_uses_final_edge.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
+  reflexivity.
+Qed.
+
+Lemma render_slices_finite_slice_limits_from_app_singleton_contains_last_by_final_edge :
+  forall start xs d,
+    In (render_finite_slice (final_edge_from start xs) (final_edge_from start (xs ++ [d])))
+       (render_slices FiniteProjection (slice_limits_from start (xs ++ [d]))).
+Proof.
+  intros start xs d.
+  rewrite render_slices_finite_slice_limits_from_app_singleton_uses_final_edge.
+  apply in_or_app.
+  right.
+  simpl.
+  left.
   reflexivity.
 Qed.
 
